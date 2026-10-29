@@ -4,7 +4,7 @@
 
 [![NEAR](https://img.shields.io/badge/NEAR-Intents%20%26%20Chain%20Signatures-00EC97?logo=near&logoColor=black)](https://near.org)
 [![Security](https://img.shields.io/badge/Cryptography-AES--256--GCM%20%2B%20PBKDF2-FF2A4D)](https://en.wikipedia.org/wiki/Galois/Counter_Mode)
-[![AI Engine](https://img.shields.io/badge/AI-Gemini%202.5%20%2B%20Trader%20DNA-00F0FF)](https://deepmind.google/technologies/gemini/)
+[![AI Engine](https://img.shields.io/badge/OpenRouter-inclusionai%2Fling--3.0--flash-00F0FF)](https://openrouter.ai/models/inclusionai/ling-3.0-flash)
 [![Status](https://img.shields.io/badge/Demo%20Mode-15s%20Heartbeat%20Active-brightgreen)](http://localhost:3000)
 
 > **One-Line Pitch:** Instead of dumping raw seed phrases on non-technical heirs or trusting centralized custodians when you go dark, GhostProtocol activates an autonomous, cryptographically constrained "Ghost Agent" on NEAR that unwinds leveraged perps, mimics your trading psychology against predatory market conditions, consolidates cross-chain assets via NEAR Intents, decrypts local AES-GCM legacy directives, and streams stablecoins to your beneficiaries.
@@ -62,7 +62,7 @@ flowchart TD
 | :--- | :--- | :--- | :--- |
 | **1. Zero-Knowledge Vault** | Client-Side Estate Vault | WebCrypto **AES-256-GCM** + XOR Dual-Share Key Splitting | Encrypts private notes & cold storage seeds client-side. The network never sees raw keys. |
 | **2. Onchain Watchman** | Deterministic Lockout Contract | **NEAR Smart Contract** (`contracts/src/lib.rs`) | Maintains immutable heartbeat timer. Agent has **zero authority** while user is alive (`assert!(now > last_heartbeat + timeout)`). |
-| **3. The Living Trader DNA** | Behavioral Twin & Market Reasoner | **Python** + **Gemini API** + `trader_dna_engine.py` | Encodes user's drawdown tolerance, leverage limits, and exit habits; defends estate from toxic flow & flash-crash dumps. |
+| **3. The Living Trader DNA** | Behavioral Twin & Market Reasoner | **Python** + **OpenRouter (`inclusionai/ling-3.0-flash`)** + `trader_dna_engine.py` | Encodes user's drawdown tolerance, leverage limits, and exit habits; defends estate from toxic flow & flash-crash dumps. |
 | **4. Sovereign Settlement** | Multi-Chain Sweeper & Payout Engine | **NEAR Intents** + **NEAR Chain Signatures (`v1.signer`)** | Closes perps on external chains (Arbitrum, Solana, Hyperliquid) and swaps cross-chain tokens into clean USDC for beneficiaries. |
 
 ---

@@ -17,6 +17,7 @@ export function App() {
     "[10:30:00] [WATCHMAN] GhostProtocol Watchman initialized on NEAR Testnet.",
     "[10:30:01] [STATE] Owner proof-of-life status: ALIVE. Countdown: 15s.",
     "[10:30:02] [DNA_MIMIC] Loaded Owner Trader DNA: Patience-Disciplined Swing Hedger.",
+    "[10:30:02] [AI_ENGINE] Connected to OpenRouter :: Model: inclusionai/ling-3.0-flash.",
     "[10:30:03] [TELEGRAM] Telegram heartbeat userbot armed. Ready for pings."
   ]);
   const [isPinging, setIsPinging] = useState(false);

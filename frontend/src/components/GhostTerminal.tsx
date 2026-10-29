@@ -85,6 +85,7 @@ export const GhostTerminal: React.FC<GhostTerminalProps> = ({ logs, status }) =>
             NEAR Testnet Live
           </span>
           <span>Solver Bus: Connected</span>
+          <span className="hidden sm:inline text-cyber-cyan">Engine: OpenRouter (ling-3.0-flash)</span>
         </div>
         <span className="text-slate-400">Target: USDC Settlement</span>
       </div>

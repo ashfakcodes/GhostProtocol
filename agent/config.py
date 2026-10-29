@@ -13,7 +13,10 @@ AGENT_PRIVATE_KEY = os.getenv("AGENT_PRIVATE_KEY", "")
 BENEFICIARY_ACCOUNT_ID = os.getenv("BENEFICIARY_ACCOUNT_ID", "heir.testnet")
 BENEFICIARY_TG = os.getenv("BENEFICIARY_TG", "@heir_telegram")
 
-# AI & Gemini API Configuration
+# AI & OpenRouter / LLM Configuration
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
+OPENROUTER_BASE_URL = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
+OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "inclusionai/ling-3.0-flash")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 
