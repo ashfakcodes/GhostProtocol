@@ -1,0 +1,31 @@
+# Node / Frontend
+node_modules/
+frontend/node_modules/
+frontend/dist/
+*.local
+
+# Rust / Contracts
+target/
+contracts/target/
+**/*.rs.bk
+Cargo.lock
+
+# Python / Agent
+__pycache__/
+agent/__pycache__/
+*.py[cod]
+*$py.class
+*.session
+*.session-journal
+.venv/
+venv/
+env/
+
+# Environment & Secrets
+.env
+*.env
+
+# OS & Logs
+.DS_Store
+Thumbs.db
+*.log
