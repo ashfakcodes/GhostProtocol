@@ -137,17 +137,17 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
   return (
     <div className="space-y-4">
       {/* Top Header Bar: Pair Selector & Live 24h Ticker Stats */}
-      <div className="bg-obsidian-900 border border-obsidian-800 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-4 backdrop-blur-md">
+      <div className="bg-obsidian-900 border border-obsidian-800 rounded-xl p-3 flex flex-wrap items-center justify-between gap-4">
         {/* Pair Pills */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           {TRADING_PAIRS.map((pair) => (
             <button
               key={pair.id}
               onClick={() => handlePairChange(pair)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-mono font-bold transition-all ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-mono font-medium transition-all ${
                 selectedPair.id === pair.id
-                  ? 'bg-scarlet-500/20 text-scarlet-400 border border-scarlet-500 shadow-scarlet-glow'
-                  : 'bg-obsidian-800 text-slate-400 hover:text-white border border-obsidian-700'
+                  ? 'bg-obsidian-800 text-white border border-obsidian-700'
+                  : 'bg-transparent text-slate-400 hover:text-white border border-transparent'
               }`}
             >
               {pair.id}
@@ -207,12 +207,12 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
         <div className="lg:col-span-8 space-y-4">
           
           {/* TradingView Chart Container */}
-          <div className="h-[460px] w-full rounded-2xl overflow-hidden border border-obsidian-800 bg-obsidian-950 shadow-xl">
+          <div className="h-[460px] w-full rounded-xl overflow-hidden border border-obsidian-800 bg-obsidian-950">
             <TradingViewChart tvSymbol={selectedPair.tvSymbol} theme="dark" />
           </div>
 
           {/* Bottom Tabs: Positions vs Trader DNA Telemetry vs History */}
-          <div className="bg-obsidian-900 border border-obsidian-800 rounded-2xl p-5 shadow-xl">
+          <div className="bg-obsidian-900 border border-obsidian-800 rounded-xl p-4">
             <div className="flex items-center justify-between border-b border-obsidian-800 pb-3 mb-4">
               <div className="flex items-center gap-3">
                 <button
@@ -231,13 +231,13 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
                   onClick={() => setActiveSubTab('telemetry')}
                   className={`text-xs font-mono font-bold flex items-center gap-1.5 pb-1 border-b-2 transition-all ${
                     activeSubTab === 'telemetry'
-                      ? 'border-cyber-cyan text-white'
+                      ? 'border-sky-400 text-white'
                       : 'border-transparent text-slate-400 hover:text-slate-200'
                   }`}
                 >
-                  <Activity className="w-3.5 h-3.5 text-cyber-cyan" />
+                  <Activity className="w-3.5 h-3.5 text-sky-400" />
                   <span>Behavioral DNA Telemetry</span>
-                  <span className="w-2 h-2 rounded-full bg-cyber-emerald animate-ping"></span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
                 </button>
 
                 <button
@@ -460,16 +460,16 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
 
         {/* RIGHT COLUMN (Order Placement Form) */}
         <div className="lg:col-span-4">
-          <div className="bg-obsidian-900 border border-obsidian-800 rounded-2xl p-5 shadow-2xl backdrop-blur-md sticky top-20">
+          <div className="bg-obsidian-900 border border-obsidian-800 rounded-xl p-4 sticky top-16">
             
             {/* Long / Short Action Toggle */}
             <div className="grid grid-cols-2 gap-2 mb-4">
               <button
                 type="button"
                 onClick={() => setOrderSide('BUY')}
-                className={`py-2.5 rounded-xl font-mono text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                className={`py-2 rounded-lg font-mono text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                   orderSide === 'BUY'
-                    ? 'bg-cyber-emerald text-obsidian-950 shadow-lg shadow-cyber-emerald/20'
+                    ? 'bg-emerald-500 text-black'
                     : 'bg-obsidian-800 text-slate-400 hover:text-white border border-obsidian-700'
                 }`}
               >
@@ -480,9 +480,9 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
               <button
                 type="button"
                 onClick={() => setOrderSide('SELL')}
-                className={`py-2.5 rounded-xl font-mono text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                className={`py-2 rounded-lg font-mono text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                   orderSide === 'SELL'
-                    ? 'bg-scarlet-500 text-white shadow-scarlet-glow'
+                    ? 'bg-red-600 text-white'
                     : 'bg-obsidian-800 text-slate-400 hover:text-white border border-obsidian-700'
                 }`}
               >
@@ -693,10 +693,10 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
               <button
                 type="submit"
                 disabled={isSubmitting || status === 'Executed'}
-                className={`w-full py-3 rounded-xl font-mono text-xs font-bold uppercase tracking-wider transition-all cursor-pointer shadow-lg disabled:opacity-50 ${
+                className={`w-full py-2.5 rounded-lg font-mono text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer disabled:opacity-40 ${
                   orderSide === 'BUY'
-                    ? 'bg-cyber-emerald hover:bg-emerald-400 text-obsidian-950 shadow-cyber-emerald/20'
-                    : 'bg-scarlet-500 hover:bg-scarlet-600 text-white shadow-scarlet-glow'
+                    ? 'bg-emerald-500 hover:bg-emerald-400 text-black'
+                    : 'bg-red-600 hover:bg-red-500 text-white'
                 }`}
               >
                 {isSubmitting ? 'Recording Trade & Pinging NEAR...' : (

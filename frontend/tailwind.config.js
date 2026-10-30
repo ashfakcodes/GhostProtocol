@@ -8,31 +8,25 @@ export default {
     extend: {
       colors: {
         obsidian: {
-          950: '#050507',
-          900: '#0A0A0C',
-          800: '#121217',
-          700: '#1A1A22',
+          950: '#09090b',
+          900: '#111114',
+          800: '#18181b',
+          700: '#27272a',
         },
         scarlet: {
-          500: '#FF2A4D',
-          600: '#E01639',
-          400: '#FF5773',
-          glow: 'rgba(255, 42, 77, 0.35)',
+          500: '#ef4444',
+          600: '#dc2626',
+          400: '#f87171',
         },
         cyber: {
-          cyan: '#00F0FF',
-          emerald: '#00FF9D',
-          amber: '#FFB800',
+          cyan: '#38bdf8',
+          emerald: '#10b981',
+          amber: '#f59e0b',
         }
       },
       fontFamily: {
-        mono: ['JetBrains Mono', 'Fira Code', 'Courier New', 'monospace'],
+        mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
         sans: ['Inter', 'system-ui', 'sans-serif'],
-      },
-      boxShadow: {
-        'scarlet-glow': '0 0 25px rgba(255, 42, 77, 0.25)',
-        'scarlet-glow-lg': '0 0 50px rgba(255, 42, 77, 0.4)',
-        'cyan-glow': '0 0 20px rgba(0, 240, 255, 0.25)',
       }
     },
   },

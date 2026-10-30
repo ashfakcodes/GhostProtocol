@@ -89,13 +89,13 @@ export const BeneficiaryClaim: React.FC<BeneficiaryClaimProps> = ({
         </div>
 
         {isUnlocked ? (
-          <span className="text-xs font-mono text-cyber-emerald bg-cyber-emerald/10 border border-cyber-emerald/30 px-3 py-1 rounded-full flex items-center gap-1.5 font-bold">
+          <span className="text-xs font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 rounded font-medium flex items-center gap-1.5">
             <Sparkles className="w-3.5 h-3.5" />
             SHARE A RELEASED
           </span>
         ) : (
-          <span className="text-xs font-mono text-slate-400 bg-obsidian-800 border border-obsidian-700 px-3 py-1 rounded-full">
-            LOCKED UNTIL PROOF-OF-ABSENCE
+          <span className="text-xs font-mono text-slate-400 bg-obsidian-800 border border-obsidian-700 px-2.5 py-0.5 rounded">
+            LOCKED ONCHAIN
           </span>
         )}
       </div>
@@ -111,7 +111,7 @@ export const BeneficiaryClaim: React.FC<BeneficiaryClaimProps> = ({
             value={shareA}
             onChange={(e) => setShareA(e.target.value)}
             placeholder={isUnlocked ? "Auto-synced from NEAR..." : "Locked onchain..."}
-            className="w-full bg-obsidian-950 border border-obsidian-700 rounded-xl px-3 py-2 text-xs font-mono text-slate-200 focus:outline-none focus:border-purple-500"
+            className="w-full bg-obsidian-950 border border-obsidian-700 rounded-lg px-3 py-2 text-xs font-mono text-slate-200 focus:outline-none focus:border-zinc-500"
           />
         </div>
 
@@ -124,13 +124,13 @@ export const BeneficiaryClaim: React.FC<BeneficiaryClaimProps> = ({
             value={shareB}
             onChange={(e) => setShareB(e.target.value)}
             placeholder="Paste your 64-character Share B here..."
-            className="w-full bg-obsidian-950 border border-obsidian-700 rounded-xl px-3 py-2 text-xs font-mono text-slate-200 focus:outline-none focus:border-purple-500"
+            className="w-full bg-obsidian-950 border border-obsidian-700 rounded-lg px-3 py-2 text-xs font-mono text-slate-200 focus:outline-none focus:border-zinc-500"
           />
         </div>
       </div>
 
       {error && (
-        <div className="mb-4 p-3 bg-red-950/40 border border-red-500/40 rounded-xl text-xs text-red-300 flex items-center gap-2">
+        <div className="mb-4 p-3 bg-red-950/40 border border-red-500/40 rounded-lg text-xs text-red-300 flex items-center gap-2">
           <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
           <span>{error}</span>
         </div>
@@ -140,15 +140,15 @@ export const BeneficiaryClaim: React.FC<BeneficiaryClaimProps> = ({
         <button
           onClick={handleDecrypt}
           disabled={!shareB}
-          className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-medium py-2.5 rounded-xl transition-all shadow-lg text-xs uppercase tracking-wider cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+          className="w-full flex items-center justify-center gap-2 bg-zinc-100 hover:bg-white text-zinc-950 font-mono font-medium py-2.5 rounded-lg text-xs uppercase tracking-wider transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <KeyRound className="w-4 h-4" />
           <span>Decrypt Sovereign Legacy Document</span>
         </button>
       ) : (
-        <div className="bg-obsidian-950 border border-cyber-emerald/40 rounded-xl p-4">
+        <div className="bg-obsidian-950 border border-emerald-500/30 rounded-xl p-4">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-mono font-bold text-cyber-emerald flex items-center gap-1.5">
+            <span className="text-xs font-mono font-bold text-emerald-400 flex items-center gap-1.5">
               <CheckCircle2 className="w-4 h-4" />
               DECRYPTION SUCCESSFUL (MATHEMATICAL SHARES MATCHED)
             </span>
@@ -156,12 +156,12 @@ export const BeneficiaryClaim: React.FC<BeneficiaryClaimProps> = ({
               onClick={copyNote}
               className="text-xs text-slate-400 hover:text-white flex items-center gap-1 font-mono"
             >
-              {copiedNote ? <Check className="w-3.5 h-3.5 text-cyber-emerald" /> : <Copy className="w-3.5 h-3.5" />}
+              {copiedNote ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
               <span>{copiedNote ? "Copied" : "Copy"}</span>
             </button>
           </div>
 
-          <pre className="text-xs font-mono text-slate-200 bg-obsidian-900/90 p-3.5 rounded-lg whitespace-pre-wrap leading-relaxed border border-obsidian-800">
+          <pre className="text-xs font-mono text-slate-200 bg-obsidian-900 p-3.5 rounded-lg whitespace-pre-wrap leading-relaxed border border-obsidian-800">
             {decryptedMessage}
           </pre>
         </div>

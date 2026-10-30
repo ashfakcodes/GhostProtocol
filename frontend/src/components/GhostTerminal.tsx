@@ -31,19 +31,12 @@ export const GhostTerminal: React.FC<GhostTerminalProps> = ({ logs, status }) =>
   };
 
   return (
-    <div className="bg-obsidian-950 border border-obsidian-800 rounded-2xl overflow-hidden shadow-2xl flex flex-col h-[380px]">
+    <div className="bg-obsidian-950 border border-obsidian-800 rounded-xl overflow-hidden flex flex-col h-[380px]">
       {/* Terminal Top Bar */}
-      <div className="bg-obsidian-900 border-b border-obsidian-800 px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <div className="flex gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-red-500/80"></span>
-            <span className="w-2.5 h-2.5 rounded-full bg-yellow-500/80"></span>
-            <span className="w-2.5 h-2.5 rounded-full bg-green-500/80"></span>
-          </div>
-          <span className="text-xs font-mono text-slate-400 flex items-center gap-1.5 ml-2">
-            <Terminal className="w-3.5 h-3.5 text-scarlet-500" />
-            <span>ghost-agent-daemon :: near-live-telemetry</span>
-          </span>
+      <div className="bg-obsidian-900 border-b border-obsidian-800 px-4 py-2.5 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Terminal className="w-3.5 h-3.5 text-slate-400" />
+          <span className="text-xs font-mono text-slate-300">ghost-agent-daemon :: near-live-telemetry</span>
         </div>
 
         <div className="flex items-center gap-3">
@@ -55,13 +48,13 @@ export const GhostTerminal: React.FC<GhostTerminalProps> = ({ logs, status }) =>
             className="text-slate-400 hover:text-white transition-colors text-xs flex items-center gap-1 font-mono"
             title="Copy Terminal Logs"
           >
-            {copied ? <Check className="w-3.5 h-3.5 text-cyber-emerald" /> : <Copy className="w-3.5 h-3.5" />}
+            {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
           </button>
         </div>
       </div>
 
       {/* Terminal Content */}
-      <div className="flex-1 p-4 overflow-y-auto font-mono text-xs space-y-1.5 bg-obsidian-950/90 leading-relaxed selection:bg-scarlet-500/30">
+      <div className="flex-1 p-4 overflow-y-auto font-mono text-xs space-y-1.5 bg-obsidian-950 leading-relaxed">
         {logs.length === 0 ? (
           <div className="h-full flex items-center justify-center text-slate-600 italic">
             Connecting to GhostProtocol telemetry stream...
@@ -78,16 +71,16 @@ export const GhostTerminal: React.FC<GhostTerminalProps> = ({ logs, status }) =>
       </div>
 
       {/* Status Bar Footer */}
-      <div className="bg-obsidian-900/60 border-t border-obsidian-800/80 px-4 py-2 flex items-center justify-between text-[11px] font-mono text-slate-400">
+      <div className="bg-obsidian-900 border-t border-obsidian-800 px-4 py-2 flex items-center justify-between text-[11px] font-mono text-slate-400">
         <div className="flex items-center gap-4">
-          <span className="flex items-center gap-1 text-cyber-emerald">
-            <span className="w-1.5 h-1.5 rounded-full bg-cyber-emerald animate-ping"></span>
+          <span className="flex items-center gap-1.5 text-emerald-400">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
             NEAR Testnet Live
           </span>
           <span>Solver Bus: Connected</span>
-          <span className="hidden sm:inline text-cyber-cyan">Engine: OpenRouter (ling-3.0-flash)</span>
+          <span className="hidden sm:inline text-sky-400">Engine: OpenRouter (ling-3.0-flash)</span>
         </div>
-        <span className="text-slate-400">Target: USDC Settlement</span>
+        <span className="text-slate-500">Target: USDC Settlement</span>
       </div>
     </div>
   );

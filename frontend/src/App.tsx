@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, Cpu, Terminal, KeyRound, Radio, ExternalLink, RefreshCw, BarChart2 } from 'lucide-react';
+import { Shield, Cpu, Terminal, KeyRound, ExternalLink, RefreshCw, BarChart2 } from 'lucide-react';
 import { CountdownHUD } from './components/CountdownHUD';
 import { TraderDNASetup } from './components/TraderDNASetup';
 import { VaultEncryptor } from './components/VaultEncryptor';
@@ -286,39 +286,33 @@ export function App() {
 
   return (
     <div className="min-h-screen bg-obsidian-950 text-slate-100 flex flex-col font-sans">
-      {/* Cyberpunk Header */}
-      <header className="border-b border-obsidian-800 bg-obsidian-900/80 backdrop-blur-md sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      {/* Header */}
+      <header className="border-b border-obsidian-800 bg-obsidian-900/90 sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-scarlet-500/10 border border-scarlet-500/30 flex items-center justify-center text-scarlet-500 shadow-scarlet-glow">
-              <Radio className="w-5 h-5 animate-pulse" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-mono text-base font-bold tracking-tight text-white">GHOSTPROTOCOL</span>
-                <span className="text-[10px] font-mono uppercase bg-scarlet-500/20 text-scarlet-400 border border-scarlet-500/30 px-2 py-0.5 rounded-full font-bold">
-                  NEAR Track 13
-                </span>
-              </div>
-              <span className="text-[10px] text-slate-400 tracking-wider font-mono block">
-                Post-Human Sovereign Executor • Living Behavioral Twin
-              </span>
-            </div>
+            <span className="font-mono text-sm font-bold tracking-tight text-white uppercase">GHOSTPROTOCOL</span>
+            <span className="text-[10px] font-mono uppercase bg-obsidian-800 text-slate-300 border border-obsidian-700 px-2 py-0.5 rounded font-semibold">
+              NEAR Track 13
+            </span>
+            <span className="text-obsidian-700 hidden md:inline">|</span>
+            <span className="text-[11px] text-slate-400 font-mono hidden md:inline">
+              Post-Human Sovereign Executor
+            </span>
           </div>
 
-          <div className="flex items-center gap-4">
-            <div className="hidden sm:flex items-center gap-2 text-xs font-mono bg-obsidian-800/80 border border-obsidian-700 px-3 py-1.5 rounded-xl">
-              <span className="w-2 h-2 rounded-full bg-cyber-emerald animate-ping"></span>
+          <div className="flex items-center gap-3">
+            <div className="hidden sm:flex items-center gap-2 text-xs font-mono bg-obsidian-800 border border-obsidian-700 px-3 py-1.5 rounded-lg">
+              <span className="w-2 h-2 rounded-full bg-cyber-emerald"></span>
               <span className="text-slate-300">NEAR Testnet</span>
               <span className="text-obsidian-700">|</span>
-              <span className="text-cyber-cyan">Chain Signatures (MPC)</span>
+              <span className="text-slate-400">Chain Signatures (MPC)</span>
             </div>
 
             <a
               href="https://github.com"
               target="_blank"
               rel="noreferrer"
-              className="text-slate-400 hover:text-white p-2 rounded-lg hover:bg-obsidian-800 transition-colors"
+              className="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-obsidian-800 transition-colors"
             >
               <ExternalLink className="w-4 h-4" />
             </a>
@@ -327,7 +321,7 @@ export function App() {
       </header>
 
       {/* Main Container */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 w-full space-y-5">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 flex-1 w-full space-y-5">
         {/* Top: Countdown & Proof of Life HUD */}
         <CountdownHUD
           status={status}
@@ -340,53 +334,53 @@ export function App() {
         />
 
         {/* Tab Navigation */}
-        <div className="flex flex-wrap gap-2 border-b border-obsidian-800 pb-2">
+        <div className="flex flex-wrap gap-1.5 border-b border-obsidian-800 pb-2">
           <button
             onClick={() => setActiveTab('trade')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-mono font-medium transition-all cursor-pointer ${
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-mono font-medium transition-all cursor-pointer ${
               activeTab === 'trade'
-                ? 'bg-obsidian-800 text-white border border-scarlet-500/50 shadow-scarlet-glow'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-obsidian-900'
+                ? 'bg-obsidian-800 text-white border border-obsidian-700'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-obsidian-900 border border-transparent'
             }`}
           >
-            <BarChart2 className="w-3.5 h-3.5 text-scarlet-400" />
+            <BarChart2 className="w-3.5 h-3.5 text-slate-300" />
             <span>1. Trade & Behavioral Profiler</span>
-            <span className="text-[10px] px-1.5 py-0.2 bg-cyber-emerald/20 text-cyber-emerald rounded">Live TV</span>
+            <span className="text-[10px] px-1 py-0.2 bg-obsidian-950 text-slate-400 border border-obsidian-800 rounded">TradingView</span>
           </button>
 
           <button
             onClick={() => setActiveTab('vault')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-mono font-medium transition-all cursor-pointer ${
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-mono font-medium transition-all cursor-pointer ${
               activeTab === 'vault'
-                ? 'bg-obsidian-800 text-white border border-scarlet-500/50 shadow-scarlet-glow'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-obsidian-900'
+                ? 'bg-obsidian-800 text-white border border-obsidian-700'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-obsidian-900 border border-transparent'
             }`}
           >
-            <KeyRound className="w-3.5 h-3.5 text-cyber-cyan" />
+            <KeyRound className="w-3.5 h-3.5 text-slate-300" />
             <span>2. Sovereign Vault & Keys</span>
           </button>
 
           <button
             onClick={() => setActiveTab('agent')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-mono font-medium transition-all cursor-pointer ${
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-mono font-medium transition-all cursor-pointer ${
               activeTab === 'agent'
-                ? 'bg-obsidian-800 text-white border border-scarlet-500/50 shadow-scarlet-glow'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-obsidian-900'
+                ? 'bg-obsidian-800 text-white border border-obsidian-700'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-obsidian-900 border border-transparent'
             }`}
           >
-            <Terminal className="w-3.5 h-3.5 text-purple-400" />
+            <Terminal className="w-3.5 h-3.5 text-slate-300" />
             <span>3. Ghost Agent Combat Feed</span>
           </button>
 
           <button
             onClick={() => setActiveTab('claim')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-mono font-medium transition-all cursor-pointer ${
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-mono font-medium transition-all cursor-pointer ${
               activeTab === 'claim'
-                ? 'bg-obsidian-800 text-white border border-scarlet-500/50 shadow-scarlet-glow'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-obsidian-900'
+                ? 'bg-obsidian-800 text-white border border-obsidian-700'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-obsidian-900 border border-transparent'
             }`}
           >
-            <Shield className="w-3.5 h-3.5 text-cyber-emerald" />
+            <Shield className="w-3.5 h-3.5 text-slate-300" />
             <span>4. Beneficiary Recovery Portal</span>
           </button>
         </div>

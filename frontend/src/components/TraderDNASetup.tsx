@@ -20,19 +20,19 @@ export const TraderDNASetup: React.FC<TraderDNASetupProps> = ({ onSaveDNA }) => 
       id: 'Patience-Disciplined Swing Hedger',
       name: 'Disciplined Swing Hedger',
       desc: 'Never panic-sells oversold dips. Unwinds via multi-batch TWAP and uses delta-neutral hedges.',
-      color: 'border-cyber-cyan/50 text-cyber-cyan'
+      color: 'border-zinc-500 text-slate-200'
     },
     {
       id: 'Ultra-Conservative Capital Preserver',
       name: 'Capital Preserver',
       desc: 'Immediate protective hedging. Strict 0.15% slippage cap. Deploys exclusively into safe yield vaults.',
-      color: 'border-cyber-emerald/50 text-cyber-emerald'
+      color: 'border-zinc-500 text-slate-200'
     },
     {
       id: 'Tactical Momentum Combatant',
       name: 'Tactical Combatant',
       desc: 'Fights toxic flow & MEV. Uses trailing stops on rebounds to extract maximum value for beneficiaries.',
-      color: 'border-scarlet-500/50 text-scarlet-400'
+      color: 'border-zinc-500 text-slate-200'
     }
   ];
 
@@ -65,14 +65,14 @@ export const TraderDNASetup: React.FC<TraderDNASetupProps> = ({ onSaveDNA }) => 
   };
 
   return (
-    <div className="bg-obsidian-900 border border-obsidian-700/60 rounded-2xl p-6 backdrop-blur-md relative overflow-hidden">
+    <div className="bg-obsidian-900 border border-obsidian-800 rounded-xl p-5 relative overflow-hidden">
       <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-scarlet-500/10 border border-scarlet-500/20 text-scarlet-400">
-            <Cpu className="w-5 h-5" />
+          <div className="p-2 rounded-lg bg-obsidian-800 border border-obsidian-700 text-slate-300">
+            <Cpu className="w-4 h-4" />
           </div>
           <div>
-            <h3 className="text-base font-bold text-white flex items-center gap-2">
+            <h3 className="text-sm font-bold text-white flex items-center gap-2">
               Trader DNA & Behavioral Twin Engine
             </h3>
             <p className="text-xs text-slate-400">
@@ -82,9 +82,9 @@ export const TraderDNASetup: React.FC<TraderDNASetupProps> = ({ onSaveDNA }) => 
         </div>
 
         {isSaved && (
-          <span className="text-xs font-mono font-medium text-cyber-emerald flex items-center gap-1.5 bg-cyber-emerald/10 px-3 py-1 rounded-full border border-cyber-emerald/30">
+          <span className="text-xs font-mono font-medium text-emerald-400 flex items-center gap-1.5 bg-emerald-500/10 px-2.5 py-0.5 rounded border border-emerald-500/20">
             <ShieldCheck className="w-3.5 h-3.5" />
-            DNA SYNCED TO CONTRACT
+            DNA SYNCED
           </span>
         )}
       </div>
@@ -95,10 +95,10 @@ export const TraderDNASetup: React.FC<TraderDNASetupProps> = ({ onSaveDNA }) => 
           <div
             key={a.id}
             onClick={() => setArchetype(a.id)}
-            className={`p-3.5 rounded-xl border cursor-pointer transition-all ${
+            className={`p-3.5 rounded-lg border cursor-pointer transition-all ${
               archetype === a.id
-                ? `${a.color} bg-obsidian-800 shadow-md`
-                : 'border-obsidian-800 bg-obsidian-950/60 text-slate-400 hover:border-obsidian-700'
+                ? `${a.color} bg-obsidian-800`
+                : 'border-obsidian-800 bg-obsidian-950 text-slate-400 hover:border-obsidian-700'
             }`}
           >
             <div className="flex items-center justify-between mb-1">
@@ -168,10 +168,10 @@ export const TraderDNASetup: React.FC<TraderDNASetupProps> = ({ onSaveDNA }) => 
                 key={asset}
                 type="button"
                 onClick={() => setReserveAsset(asset)}
-                className={`text-xs px-2.5 py-1 rounded-md font-mono border transition-all ${
+                className={`text-xs px-2.5 py-1 rounded font-mono border transition-all ${
                   reserveAsset === asset
-                    ? 'border-scarlet-500 bg-scarlet-500/10 text-white font-bold'
-                    : 'border-obsidian-700 text-slate-400 hover:text-slate-200'
+                    ? 'border-zinc-500 bg-obsidian-800 text-white font-bold'
+                    : 'border-obsidian-800 text-slate-400 hover:text-slate-200'
                 }`}
               >
                 {asset}
@@ -184,10 +184,10 @@ export const TraderDNASetup: React.FC<TraderDNASetupProps> = ({ onSaveDNA }) => 
       <div className="flex justify-end">
         <button
           onClick={handleSave}
-          className="flex items-center gap-2 bg-obsidian-800 hover:bg-obsidian-700 text-white border border-obsidian-700 px-4 py-2 rounded-xl text-xs font-medium transition-colors hover:border-scarlet-500/50 cursor-pointer"
+          className="flex items-center gap-2 bg-zinc-100 hover:bg-white text-zinc-950 px-3.5 py-1.5 rounded-lg text-xs font-mono font-medium transition-colors cursor-pointer"
         >
-          <Sliders className="w-3.5 h-3.5 text-scarlet-400" />
-          <span>Calibrate & Commit Trader DNA</span>
+          <Sliders className="w-3.5 h-3.5 text-zinc-700" />
+          <span>Commit Trader DNA</span>
         </button>
       </div>
     </div>
