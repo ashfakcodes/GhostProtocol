@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   TrendingUp, TrendingDown, Sliders, Shield, Zap, Activity, 
   Clock, ArrowUpRight, ArrowDownRight, Layers, Target, AlertTriangle, 
-  CheckCircle2, XCircle, Info, RefreshCw
+  CheckCircle2, XCircle, Info, RefreshCw, ChevronDown, Search, Check, Coins
 } from 'lucide-react';
 import { TradingViewChart } from './TradingViewChart';
 
@@ -23,6 +23,20 @@ export interface Position {
   opened_at: number;
 }
 
+export interface TradingPair {
+  id: string;
+  name: string;
+  tvSymbol: string;
+  price: number;
+  change24h: string;
+  high: number;
+  low: number;
+  funding: string;
+  oi: string;
+  category: 'Native NEP-141' | 'Chain Signatures (MPC)' | 'NEAR Intents';
+  nearTestnetContract: string;
+}
+
 interface TradingTerminalProps {
   activePositions: Position[];
   tradeHistory: any[];
@@ -32,11 +46,168 @@ interface TradingTerminalProps {
   status: string;
 }
 
-const TRADING_PAIRS = [
-  { id: 'NEAR/USDC', tvSymbol: 'BINANCE:NEARUSDT', price: 5.24, change24h: '+4.18%', high: 5.42, low: 4.96, funding: '-0.0152%', oi: '$48.2M' },
-  { id: 'BTC/USDT', tvSymbol: 'BINANCE:BTCUSDT', price: 68450.00, change24h: '+1.62%', high: 69120.00, low: 67200.00, funding: '+0.0084%', oi: '$840.5M' },
-  { id: 'ETH/USDC', tvSymbol: 'BINANCE:ETHUSDT', price: 3154.50, change24h: '+2.45%', high: 3210.00, low: 3080.00, funding: '-0.0120%', oi: '$312.4M' },
-  { id: 'SOL/USDC', tvSymbol: 'BINANCE:SOLUSDT', price: 182.20, change24h: '-0.85%', high: 188.40, low: 179.10, funding: '+0.0051%', oi: '$194.8M' },
+const TRADING_PAIRS: TradingPair[] = [
+  // 1. Native NEAR & NEP-141 Ecosystem (NEAR Testnet)
+  {
+    id: 'NEAR/USDC',
+    name: 'NEAR Protocol',
+    tvSymbol: 'BINANCE:NEARUSDT',
+    price: 5.24,
+    change24h: '+4.18%',
+    high: 5.42,
+    low: 4.96,
+    funding: '-0.0152%',
+    oi: '$48.2M',
+    category: 'Native NEP-141',
+    nearTestnetContract: 'wrap.testnet / usdc.fakes.testnet'
+  },
+  {
+    id: 'REF/USDC',
+    name: 'Ref Finance',
+    tvSymbol: 'MEXC:REFUSDT',
+    price: 0.185,
+    change24h: '+7.42%',
+    high: 0.198,
+    low: 0.171,
+    funding: '-0.0080%',
+    oi: '$3.8M',
+    category: 'Native NEP-141',
+    nearTestnetContract: 'ref.fakes.testnet'
+  },
+  {
+    id: 'AURORA/USDC',
+    name: 'Aurora EVM Engine',
+    tvSymbol: 'COINBASE:AURORAUSD',
+    price: 0.142,
+    change24h: '+1.85%',
+    high: 0.150,
+    low: 0.138,
+    funding: '+0.0020%',
+    oi: '$2.1M',
+    category: 'Native NEP-141',
+    nearTestnetContract: 'aurora.testnet'
+  },
+  {
+    id: 'SWEAT/USDC',
+    name: 'Sweat Economy',
+    tvSymbol: 'BYBIT:SWEATUSDT',
+    price: 0.0078,
+    change24h: '-1.12%',
+    high: 0.0082,
+    low: 0.0075,
+    funding: '+0.0015%',
+    oi: '$4.5M',
+    category: 'Native NEP-141',
+    nearTestnetContract: 'token.sweat.testnet'
+  },
+  {
+    id: 'LONK/NEAR',
+    name: 'Lonk Meme',
+    tvSymbol: 'BINANCE:NEARUSDT',
+    price: 0.0000042,
+    change24h: '+14.6%',
+    high: 0.0000048,
+    low: 0.0000037,
+    funding: '0.0000%',
+    oi: '$1.2M',
+    category: 'Native NEP-141',
+    nearTestnetContract: 'lonk.testnet'
+  },
+  {
+    id: 'BLACKDRAGON/NEAR',
+    name: 'Black Dragon',
+    tvSymbol: 'BINANCE:NEARUSDT',
+    price: 0.000085,
+    change24h: '+9.3%',
+    high: 0.000092,
+    low: 0.000078,
+    funding: '0.0000%',
+    oi: '$890K',
+    category: 'Native NEP-141',
+    nearTestnetContract: 'blackdragon.testnet'
+  },
+
+  // 2. Multi-Chain Assets via NEAR Chain Signatures (v1.signer MPC)
+  {
+    id: 'BTC/USDT',
+    name: 'Bitcoin (MPC)',
+    tvSymbol: 'BINANCE:BTCUSDT',
+    price: 68450.00,
+    change24h: '+1.62%',
+    high: 69120.00,
+    low: 67200.00,
+    funding: '+0.0084%',
+    oi: '$840.5M',
+    category: 'Chain Signatures (MPC)',
+    nearTestnetContract: 'v1.signer (Root Secp256k1 MPC)'
+  },
+  {
+    id: 'SOL/USDC',
+    name: 'Solana (MPC)',
+    tvSymbol: 'BINANCE:SOLUSDT',
+    price: 182.20,
+    change24h: '-0.85%',
+    high: 188.40,
+    low: 179.10,
+    funding: '+0.0051%',
+    oi: '$194.8M',
+    category: 'Chain Signatures (MPC)',
+    nearTestnetContract: 'v1.signer (Ed25519 MPC Curve)'
+  },
+  {
+    id: 'DOGE/USDC',
+    name: 'Dogecoin (MPC)',
+    tvSymbol: 'BINANCE:DOGEUSDT',
+    price: 0.165,
+    change24h: '+3.14%',
+    high: 0.172,
+    low: 0.158,
+    funding: '+0.0090%',
+    oi: '$55.1M',
+    category: 'Chain Signatures (MPC)',
+    nearTestnetContract: 'v1.signer (UTXO Derivation)'
+  },
+  {
+    id: 'XRP/USDC',
+    name: 'XRP Ledger (MPC)',
+    tvSymbol: 'BINANCE:XRPUSDT',
+    price: 0.548,
+    change24h: '+0.95%',
+    high: 0.562,
+    low: 0.539,
+    funding: '-0.0045%',
+    oi: '$68.2M',
+    category: 'Chain Signatures (MPC)',
+    nearTestnetContract: 'v1.signer (XRPL Secp256k1)'
+  },
+
+  // 3. Cross-Chain via NEAR Intents (Solver Bus NEP-413)
+  {
+    id: 'ETH/USDC',
+    name: 'Ethereum (Rainbow/Intents)',
+    tvSymbol: 'BINANCE:ETHUSDT',
+    price: 3154.50,
+    change24h: '+2.45%',
+    high: 3210.00,
+    low: 3080.00,
+    funding: '-0.0120%',
+    oi: '$312.4M',
+    category: 'NEAR Intents',
+    nearTestnetContract: 'solver-relay.testnet'
+  },
+  {
+    id: 'ARB/USDC',
+    name: 'Arbitrum (NEAR Intents)',
+    tvSymbol: 'BINANCE:ARBUSDT',
+    price: 0.562,
+    change24h: '+5.20%',
+    high: 0.585,
+    low: 0.530,
+    funding: '-0.0095%',
+    oi: '$24.6M',
+    category: 'NEAR Intents',
+    nearTestnetContract: 'solver-relay.testnet'
+  }
 ];
 
 export const TradingTerminal: React.FC<TradingTerminalProps> = ({
@@ -66,6 +237,39 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
   const [activeSubTab, setActiveSubTab] = useState<'positions' | 'telemetry' | 'history'>('positions');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [closingId, setClosingId] = useState<string | null>(null);
+
+  // Pair Dropdown States
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Click outside listener for pair dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Filter pairs
+  const filteredPairs = TRADING_PAIRS.filter((pair) => {
+    const matchesSearch = 
+      pair.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      pair.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      pair.nearTestnetContract.toLowerCase().includes(searchQuery.toLowerCase());
+
+    const matchesCategory = 
+      selectedCategory === 'ALL' ||
+      (selectedCategory === 'NEP-141' && pair.category === 'Native NEP-141') ||
+      (selectedCategory === 'MPC Signer' && pair.category === 'Chain Signatures (MPC)') ||
+      (selectedCategory === 'Intents' && pair.category === 'NEAR Intents');
+
+    return matchesSearch && matchesCategory;
+  });
 
   // Sync price when pair changes
   const handlePairChange = (pair: typeof TRADING_PAIRS[0]) => {
@@ -138,21 +342,112 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
     <div className="space-y-4">
       {/* Top Header Bar: Pair Selector & Live 24h Ticker Stats */}
       <div className="bg-obsidian-900 border border-obsidian-800 rounded-xl p-3 flex flex-wrap items-center justify-between gap-4">
-        {/* Pair Pills */}
-        <div className="flex items-center gap-1.5">
-          {TRADING_PAIRS.map((pair) => (
-            <button
-              key={pair.id}
-              onClick={() => handlePairChange(pair)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-mono font-medium transition-all ${
-                selectedPair.id === pair.id
-                  ? 'bg-obsidian-800 text-white border border-obsidian-700'
-                  : 'bg-transparent text-slate-400 hover:text-white border border-transparent'
-              }`}
-            >
-              {pair.id}
-            </button>
-          ))}
+        {/* Pair Dropdown Menu (NEAR Testnet Compatible Tokens) */}
+        <div className="relative" ref={dropdownRef}>
+          <button
+            type="button"
+            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+            className="flex items-center gap-3 bg-obsidian-950 border border-obsidian-700 hover:border-zinc-500 rounded-lg px-3 py-1.5 transition-colors cursor-pointer text-left"
+          >
+            <div className="flex flex-col">
+              <div className="flex items-center gap-1.5">
+                <span className="font-mono text-xs font-bold text-white tracking-wide">
+                  {selectedPair.id}
+                </span>
+                <span className="text-[9px] font-mono px-1 py-0.2 rounded bg-obsidian-800 text-slate-400 border border-obsidian-700">
+                  {selectedPair.nearTestnetContract.split(' ')[0]}
+                </span>
+              </div>
+              <span className="text-[10px] text-slate-400 font-mono">
+                {selectedPair.name}
+              </span>
+            </div>
+            <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
+          </button>
+
+          {/* Dropdown Panel */}
+          {isDropdownOpen && (
+            <div className="absolute top-full left-0 mt-1.5 w-80 sm:w-96 bg-obsidian-900 border border-obsidian-700 rounded-xl z-50 p-2.5 space-y-2">
+              {/* Search Bar */}
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search token or NEAR testnet contract..."
+                  className="w-full bg-obsidian-950 border border-obsidian-700 rounded-lg pl-8 pr-3 py-1.5 text-xs font-mono text-white placeholder-slate-500 focus:outline-none focus:border-zinc-500"
+                  autoFocus
+                />
+              </div>
+
+              {/* Category Filter Chips */}
+              <div className="flex gap-1 overflow-x-auto pb-1 text-[10px] font-mono">
+                {['ALL', 'NEP-141', 'MPC Signer', 'Intents'].map((cat) => (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => setSelectedCategory(cat)}
+                    className={`px-2 py-0.5 rounded whitespace-nowrap transition-colors cursor-pointer ${
+                      selectedCategory === cat
+                        ? 'bg-zinc-800 text-white font-medium border border-zinc-700'
+                        : 'text-slate-400 hover:text-slate-200 border border-transparent'
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+
+              {/* Token List */}
+              <div className="max-h-64 overflow-y-auto space-y-1 divide-y divide-obsidian-800/40">
+                {filteredPairs.length === 0 ? (
+                  <div className="text-center py-4 text-xs font-mono text-slate-500">
+                    No matching NEAR testnet tokens found.
+                  </div>
+                ) : (
+                  filteredPairs.map((pair) => (
+                    <div
+                      key={pair.id}
+                      onClick={() => {
+                        handlePairChange(pair);
+                        setIsDropdownOpen(false);
+                        setSearchQuery('');
+                      }}
+                      className={`flex items-center justify-between p-2 rounded-lg cursor-pointer transition-colors ${
+                        selectedPair.id === pair.id
+                          ? 'bg-obsidian-800 text-white'
+                          : 'hover:bg-obsidian-800/60 text-slate-300'
+                      }`}
+                    >
+                      <div className="flex flex-col">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-mono text-xs font-bold text-white">{pair.id}</span>
+                          <span className="text-[9px] font-mono px-1 py-0.2 rounded bg-obsidian-950 text-slate-400 border border-obsidian-800">
+                            {pair.category.includes('NEP-141') ? 'NEP-141' : pair.category.includes('MPC') ? 'Chain Sig' : 'Intent'}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1 text-[10px] text-slate-400 font-mono">
+                          <span>{pair.name}</span>
+                          <span className="text-obsidian-700">•</span>
+                          <span className="text-slate-500 truncate max-w-[130px]">{pair.nearTestnetContract}</span>
+                        </div>
+                      </div>
+
+                      <div className="text-right font-mono text-xs">
+                        <span className="block font-medium text-white">
+                          ${pair.price >= 1 ? pair.price.toLocaleString() : pair.price}
+                        </span>
+                        <span className={`text-[10px] ${pair.change24h.startsWith('+') ? 'text-emerald-400' : 'text-red-400'}`}>
+                          {pair.change24h}
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Live Ticker Stats */}
