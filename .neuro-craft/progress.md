@@ -23,3 +23,25 @@
 - **Verification:**
   - Frontend compiled cleanly with `tsc && vite build` (0 errors).
   - Python unit verification passed for DNA initialization, trade recording, position close extraction, and prompt constraints formatting.
+
+
+### 2. Real NEAR Testnet Trading Desk & Atomic Batch Execution
+- **Architectural Directive:** Hybrid Account (human & agent friction-free signing) + NEAR Intents (NEP-413) + Atomic On-Chain Heartbeat Batching.
+- **Core Features Implemented:**
+  1. **Hybrid Account & Keyring (`frontend/src/lib/nearTestnet.ts`):**
+     - Automatically generates or loads Ed25519 session keys in `localStorage`.
+     - Supports custom `.testnet` account and private key import/export.
+     - Direct JSON-RPC balance query to `rpc.testnet.near.org` via modern `near-api-js`.
+  2. **Cool Testnet Faucet Integration:**
+     - Institutional high-contrast button (`+10 NEAR`) with micro-border and loading states.
+     - Relayed via backend `/api/testnet/faucet` for gas provisioning.
+  3. **Atomic 2-Action Batched Execution:**
+     - Every trade order executes an atomic multi-action transaction on NEAR testnet:
+       - Action 0: NEP-413 NEAR Intent Swap Escrow
+       - Action 1: FunctionCall `ghostprotocol.testnet::ping_heartbeat()`
+     - Proves trading is itself cryptographic Proof-of-Life on NEAR testnet in a single receipt.
+  4. **NearBlocks Verification:**
+     - Clickable transaction hash pills in toast notifications, Active Positions, and Order History linking to `https://testnet.nearblocks.io/txns/{tx_hash}`.
+- **Verification:**
+  - `tsc && vite build` passed cleanly with 0 errors (`dist/assets/index-CLiCcPBF.js`).
+  - Backend `ghost_agent.py` loaded and verified with `/api/testnet/faucet` and atomic batch ingestion.

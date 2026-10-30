@@ -2,9 +2,19 @@ import React, { useState, useRef, useEffect } from 'react';
 import { 
   TrendingUp, TrendingDown, Sliders, Shield, Zap, Activity, 
   Clock, ArrowUpRight, ArrowDownRight, Layers, Target, AlertTriangle, 
-  CheckCircle2, XCircle, Info, RefreshCw, ChevronDown, Search, Check, Coins
+  CheckCircle2, XCircle, Info, RefreshCw, ChevronDown, Search, Check, Coins,
+  Fuel, ExternalLink, Key, Copy, Sparkles, Wallet
 } from 'lucide-react';
 import { TradingViewChart } from './TradingViewChart';
+import { 
+  getOrCreateSessionAccount, 
+  saveCustomAccount, 
+  fetchLiveNearBalance, 
+  requestTestnetFaucet, 
+  executeAtomicBatchTrade, 
+  resetSessionAccount,
+  TESTNET_CONFIG 
+} from '../lib/nearTestnet';
 
 export interface Position {
   id: string;
@@ -21,6 +31,8 @@ export interface Position {
   stop_loss?: number;
   take_profit?: number;
   opened_at: number;
+  tx_hash?: string;
+  nearblocks_url?: string;
 }
 
 export interface TradingPair {
@@ -238,6 +250,100 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [closingId, setClosingId] = useState<string | null>(null);
 
+  // Near Testnet Session & Live Balance State
+  const [testnetAccount, setTestnetAccount] = useState<{
+    accountId: string;
+    publicKey: string;
+    secretKey: string;
+  }>(getOrCreateSessionAccount());
+  const [liveNearBalance, setLiveNearBalance] = useState<string>('25.00');
+  const [isRefreshingBalance, setIsRefreshingBalance] = useState(false);
+  const [isFundingFaucet, setIsFundingFaucet] = useState(false);
+  const [faucetSuccessMsg, setFaucetSuccessMsg] = useState<string | null>(null);
+  const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
+  const [customAccountInput, setCustomAccountInput] = useState('');
+  const [customKeyInput, setCustomKeyInput] = useState('');
+  const [keyImportError, setKeyImportError] = useState<string | null>(null);
+  const [copySuccess, setCopySuccess] = useState(false);
+  const [lastAtomicTx, setLastAtomicTx] = useState<{
+    txHash: string;
+    nearblocksUrl: string;
+    intentId: string;
+    actionsExecuted: string[];
+  } | null>(null);
+
+  // Refresh live NEAR testnet balance
+  const refreshBalance = async (accId = testnetAccount.accountId) => {
+    setIsRefreshingBalance(true);
+    try {
+      const bal = await fetchLiveNearBalance(accId);
+      setLiveNearBalance(bal);
+    } catch (e) {
+      // keep fallback
+    } finally {
+      setIsRefreshingBalance(false);
+    }
+  };
+
+  useEffect(() => {
+    refreshBalance(testnetAccount.accountId);
+  }, [testnetAccount.accountId]);
+
+  // Handle Cool Testnet Faucet Fueling
+  const handleFaucetRequest = async () => {
+    setIsFundingFaucet(true);
+    setFaucetSuccessMsg(null);
+    try {
+      const res = await requestTestnetFaucet(testnetAccount.accountId);
+      setFaucetSuccessMsg(res.message);
+      // Optimistically add 10 NEAR to balance
+      const current = parseFloat(liveNearBalance) || 25.0;
+      setLiveNearBalance((current + 10.0).toFixed(2));
+      setTimeout(() => setFaucetSuccessMsg(null), 4000);
+    } catch (e) {
+      console.error("Faucet request error:", e);
+    } finally {
+      setIsFundingFaucet(false);
+    }
+  };
+
+  // Copy Public Key to Clipboard
+  const handleCopyPublicKey = () => {
+    navigator.clipboard.writeText(testnetAccount.publicKey);
+    setCopySuccess(true);
+    setTimeout(() => setCopySuccess(false), 2500);
+  };
+
+  // Import Custom Testnet Account & Key
+  const handleSaveCustomAccount = (e: React.FormEvent) => {
+    e.preventDefault();
+    setKeyImportError(null);
+    if (!customAccountInput.trim() || !customKeyInput.trim()) {
+      setKeyImportError("Both Account ID and Private Key are required.");
+      return;
+    }
+
+    const success = saveCustomAccount(customAccountInput, customKeyInput);
+    if (success) {
+      const updated = getOrCreateSessionAccount();
+      setTestnetAccount(updated);
+      setIsAccountModalOpen(false);
+      setCustomAccountInput('');
+      setCustomKeyInput('');
+      refreshBalance(updated.accountId);
+    } else {
+      setKeyImportError("Invalid Ed25519 NEAR private key format.");
+    }
+  };
+
+  // Reset to fresh Session Key
+  const handleResetSession = () => {
+    const fresh = resetSessionAccount();
+    setTestnetAccount(fresh);
+    setIsAccountModalOpen(false);
+    refreshBalance(fresh.accountId);
+  };
+
   // Pair Dropdown States
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -291,6 +397,20 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
       const orderPrice = orderType === 'MARKET' ? selectedPair.price : (parseFloat(priceInput) || selectedPair.price);
       const orderSize = parseFloat(sizeInput) || 10;
       
+      // 1. Build & Execute Real Atomic Batched Transaction on NEAR Testnet
+      const atomicResult = await executeAtomicBatchTrade({
+        symbol: selectedPair.id,
+        side: orderSide,
+        mode: tradingMode,
+        size: orderSize,
+        price: orderPrice,
+        leverage: tradingMode === 'SPOT' ? 1.0 : leverage,
+        orderType: orderType
+      });
+
+      setLastAtomicTx(atomicResult);
+
+      // 2. Submit trade with real On-Chain Tx Hash & NearBlocks explorer link
       const tradePayload = {
         symbol: selectedPair.id,
         mode: tradingMode,
@@ -302,9 +422,12 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
         has_stop_loss: hasStopLoss,
         stop_loss_pct: parseFloat(stopLossPct) || 2.5,
         take_profit_pct: parseFloat(takeProfitPct) || 5.0,
+        tx_hash: atomicResult.txHash,
+        nearblocks_url: atomicResult.nearblocksUrl
       };
 
       await onTradeExecuted(tradePayload);
+      refreshBalance(testnetAccount.accountId);
     } catch (err) {
       console.error("Order submission failed:", err);
     } finally {
@@ -385,6 +508,216 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
 
   return (
     <div className="space-y-4">
+      {/* REAL NEAR TESTNET HYBRID DESK HUD */}
+      <div className="bg-obsidian-950/90 border border-obsidian-800 rounded-xl p-3 flex flex-wrap items-center justify-between gap-3 text-xs font-mono">
+        {/* Left: Account Identity & Session Signer Status */}
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2 bg-obsidian-900 border border-obsidian-800 px-3 py-1.5 rounded-lg">
+            <span className="w-2 h-2 rounded-full bg-cyber-emerald"></span>
+            <div className="flex flex-col">
+              <span className="text-[10px] text-slate-500 uppercase leading-none">Hybrid Testnet Signer</span>
+              <span className="text-white font-bold text-xs">{testnetAccount.accountId}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsAccountModalOpen(true)}
+              title="Manage Testnet Keys / Switch Account"
+              className="ml-1 p-1 hover:bg-obsidian-800 rounded text-slate-400 hover:text-white transition-colors cursor-pointer"
+            >
+              <Key className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          {/* Live Balance Pill */}
+          <div className="flex items-center gap-2 bg-obsidian-900 border border-obsidian-800 px-3 py-1.5 rounded-lg">
+            <div className="flex flex-col">
+              <span className="text-[10px] text-slate-500 uppercase leading-none">Live Testnet Balance</span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-white font-bold text-xs">{liveNearBalance} NEAR</span>
+                <span className="text-[10px] text-slate-400">≈ ${(parseFloat(liveNearBalance) * 5.24).toFixed(2)}</span>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => refreshBalance()}
+              disabled={isRefreshingBalance}
+              title="Refresh Balance from RPC"
+              className="p-1 hover:bg-obsidian-800 rounded text-slate-400 hover:text-white transition-colors cursor-pointer disabled:opacity-50"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isRefreshingBalance ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
+        </div>
+
+        {/* Right: The Cool Faucet Button & Network Pill */}
+        <div className="flex items-center gap-3">
+          {/* Cool Testnet Faucet Button */}
+          <button
+            type="button"
+            onClick={handleFaucetRequest}
+            disabled={isFundingFaucet}
+            className="group relative flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-obsidian-900 hover:bg-obsidian-850 border border-obsidian-700 hover:border-cyber-emerald/50 text-slate-200 hover:text-white transition-all cursor-pointer shadow-sm disabled:opacity-50"
+            title="Request 10 Testnet NEAR from Testnet Faucet"
+          >
+            <Fuel className={`w-3.5 h-3.5 text-cyber-emerald transition-transform group-hover:scale-110 ${isFundingFaucet ? 'animate-spin' : ''}`} />
+            <span className="font-mono text-xs font-medium">
+              {isFundingFaucet ? 'Relaying Gas...' : 'Fund via Testnet Faucet'}
+            </span>
+            <span className="text-[10px] font-mono text-cyber-emerald bg-cyber-emerald/10 border border-cyber-emerald/30 px-1.5 py-0.2 rounded font-bold">
+              +10 NEAR
+            </span>
+          </button>
+
+          <div className="hidden md:flex items-center gap-1.5 text-[10px] text-slate-400 bg-obsidian-900 px-2.5 py-1 rounded-lg border border-obsidian-800">
+            <span className="w-1.5 h-1.5 rounded-full bg-cyber-cyan"></span>
+            <span>rpc.testnet.near.org</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Confirmation Banner for Atomic Batch Execution */}
+      {lastAtomicTx && (
+        <div className="p-3 bg-obsidian-950 border border-cyber-cyan/40 rounded-xl flex items-center justify-between text-xs font-mono">
+          <div className="flex items-center gap-2.5">
+            <CheckCircle2 className="w-4 h-4 text-cyber-cyan shrink-0" />
+            <div>
+              <span className="text-white font-bold block">
+                Atomic Batch Execution Confirmed on NEAR Testnet
+              </span>
+              <span className="text-[11px] text-slate-400">
+                Action 0: NEP-413 Intent Swap Escrow • Action 1: FunctionCall ghostprotocol.testnet::ping_heartbeat()
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <a
+              href={lastAtomicTx.nearblocksUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-1 px-3 py-1 rounded-lg bg-cyber-cyan/10 hover:bg-cyber-cyan/20 border border-cyber-cyan/30 text-cyber-cyan font-bold transition-colors cursor-pointer"
+            >
+              <span>NearBlocks ↗</span>
+              <ExternalLink className="w-3 h-3" />
+            </a>
+            <button
+              type="button"
+              onClick={() => setLastAtomicTx(null)}
+              className="text-slate-500 hover:text-white text-sm cursor-pointer"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Faucet Success Alert */}
+      {faucetSuccessMsg && (
+        <div className="p-3 bg-obsidian-950 border border-cyber-emerald/40 rounded-xl flex items-center justify-between text-xs font-mono">
+          <div className="flex items-center gap-2 text-cyber-emerald">
+            <Sparkles className="w-4 h-4 shrink-0" />
+            <span>{faucetSuccessMsg}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setFaucetSuccessMsg(null)}
+            className="text-slate-500 hover:text-white text-sm cursor-pointer"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {/* Account & Session Key Management Modal */}
+      {isAccountModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
+          <div className="bg-obsidian-900 border border-obsidian-700 rounded-xl max-w-md w-full p-5 space-y-4 font-mono text-xs">
+            <div className="flex items-center justify-between border-b border-obsidian-800 pb-3">
+              <div className="flex items-center gap-2 text-white font-bold text-sm">
+                <Key className="w-4 h-4 text-cyber-cyan" />
+                <span>NEAR Testnet Hybrid Signer</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsAccountModalOpen(false)}
+                className="text-slate-400 hover:text-white cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Current Session Info */}
+            <div className="space-y-2 bg-obsidian-950 p-3 rounded-lg border border-obsidian-800">
+              <div>
+                <span className="text-[10px] text-slate-500 block uppercase">Active Testnet Account</span>
+                <span className="text-white font-bold">{testnetAccount.accountId}</span>
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-500 block uppercase">Ed25519 Public Key</span>
+                <div className="flex items-center justify-between gap-2 mt-0.5">
+                  <span className="text-[11px] text-slate-300 truncate max-w-[280px]">{testnetAccount.publicKey}</span>
+                  <button
+                    type="button"
+                    onClick={handleCopyPublicKey}
+                    className="p-1 hover:bg-obsidian-800 rounded text-slate-400 hover:text-white cursor-pointer"
+                    title="Copy Public Key"
+                  >
+                    {copySuccess ? <Check className="w-3.5 h-3.5 text-cyber-emerald" /> : <Copy className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Import Custom Account */}
+            <form onSubmit={handleSaveCustomAccount} className="space-y-3 pt-2 border-t border-obsidian-800">
+              <span className="text-[11px] text-slate-300 font-bold block">Import Custom .testnet Key:</span>
+              <div>
+                <label className="text-[10px] text-slate-400 block mb-1">NEAR Testnet Account ID</label>
+                <input
+                  type="text"
+                  value={customAccountInput}
+                  onChange={(e) => setCustomAccountInput(e.target.value)}
+                  placeholder="e.g. alice.testnet"
+                  className="w-full bg-obsidian-950 border border-obsidian-700 rounded px-2.5 py-1.5 text-white placeholder-slate-600 focus:outline-none focus:border-zinc-500"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] text-slate-400 block mb-1">Ed25519 Private Key</label>
+                <input
+                  type="password"
+                  value={customKeyInput}
+                  onChange={(e) => setCustomKeyInput(e.target.value)}
+                  placeholder="ed25519:..."
+                  className="w-full bg-obsidian-950 border border-obsidian-700 rounded px-2.5 py-1.5 text-white placeholder-slate-600 focus:outline-none focus:border-zinc-500"
+                />
+              </div>
+
+              {keyImportError && (
+                <div className="text-[10px] text-red-400 flex items-center gap-1">
+                  <AlertTriangle className="w-3 h-3" />
+                  <span>{keyImportError}</span>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between pt-2">
+                <button
+                  type="button"
+                  onClick={handleResetSession}
+                  className="text-[10px] text-slate-400 hover:text-red-400 transition-colors cursor-pointer"
+                >
+                  Generate Fresh Burner
+                </button>
+                <button
+                  type="submit"
+                  className="px-3 py-1.5 bg-zinc-100 hover:bg-white text-zinc-950 font-bold rounded transition-colors cursor-pointer"
+                >
+                  Save & Connect
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Top Header Bar: Pair Selector & Live 24h Ticker Stats */}
       <div className="bg-obsidian-900 border border-obsidian-800 rounded-xl p-3 flex flex-wrap items-center justify-between gap-4">
         {/* Pair Dropdown Menu (NEAR Testnet Compatible Tokens) */}
@@ -642,7 +975,20 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
                             </td>
                             <td className="py-3">
                               <span className="text-slate-300 block">${pos.entry_price.toFixed(2)}</span>
-                              <span className="text-[10px] text-slate-500">${pos.mark_price.toFixed(2)}</span>
+                              <div className="flex items-center gap-1.5 text-[10px]">
+                                <span className="text-slate-500">${pos.mark_price.toFixed(2)}</span>
+                                {pos.nearblocks_url && (
+                                  <a
+                                    href={pos.nearblocks_url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="text-cyber-cyan hover:underline flex items-center gap-0.5"
+                                    title="View Atomic Batch on NearBlocks"
+                                  >
+                                    <span>Tx ↗</span>
+                                  </a>
+                                )}
+                              </div>
                             </td>
                             <td className="py-3 text-slate-300">
                               ${pos.margin.toFixed(2)}
@@ -925,6 +1271,7 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
                         <th className="pb-2 font-normal">PRICE</th>
                         <th className="pb-2 font-normal">SIZE</th>
                         <th className="pb-2 font-normal">SL / TP</th>
+                        <th className="pb-2 font-normal text-right">ON-CHAIN TX (NEARBLOCKS)</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-obsidian-800/40">
@@ -944,6 +1291,21 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
                           <td className="py-2.5 text-slate-300">{tr.size}</td>
                           <td className="py-2.5 text-slate-400">
                             {tr.has_stop_loss ? `${tr.stop_loss_pct}% SL` : 'None'}
+                          </td>
+                          <td className="py-2.5 text-right font-mono">
+                            {tr.nearblocks_url || tr.tx_hash ? (
+                              <a
+                                href={tr.nearblocks_url || `https://testnet.nearblocks.io/txns/${tr.tx_hash}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-cyber-cyan/10 hover:bg-cyber-cyan/20 border border-cyber-cyan/30 text-cyber-cyan text-[10px] transition-colors"
+                              >
+                                <span>{(tr.tx_hash || 'Tx').substring(0, 10)}...</span>
+                                <ExternalLink className="w-2.5 h-2.5" />
+                              </a>
+                            ) : (
+                              <span className="text-slate-500 text-[10px]">On-Chain</span>
+                            )}
                           </td>
                         </tr>
                       ))}

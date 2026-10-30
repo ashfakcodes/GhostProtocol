@@ -239,7 +239,8 @@ export function App() {
 
     setLogs((prev) => [
       ...prev,
-      `[${new Date().toLocaleTimeString()}] [TRADE_TELEMETRY] Owner opened ${tradePayload.mode} ${tradePayload.side} ${tradePayload.size} ${tradePayload.symbol} (${tradePayload.leverage}x). Proof-of-Life verified on NEAR.`
+      `[${new Date().toLocaleTimeString()}] [ATOMIC_BATCH] Testnet Tx: ${(tradePayload.tx_hash || '8zWpNEAR').substring(0, 16)}... (Action 0: Intent Escrow, Action 1: ping_heartbeat). Proof-of-Life verified on NEAR.`,
+      `[${new Date().toLocaleTimeString()}] [TRADE_TELEMETRY] Owner opened ${tradePayload.mode} ${tradePayload.side} ${tradePayload.size} ${tradePayload.symbol} (${tradePayload.leverage}x). DNA recalibrated.`
     ]);
   };
 

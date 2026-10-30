@@ -9,7 +9,8 @@ GhostProtocol: Autonomous Post-Human Sovereign Executor on NEAR that activates u
 - `agent/combat_reasoner.py`: OpenRouter LLM combat engine (`inclusionai/ling-3.0-flash`) synthesizing Trader DNA with live market conditions.
 - `agent/near_intents.py`: NEP-413 Solver Bus payload builder for atomic cross-chain swaps.
 - `agent/ghost_agent.py`: FastAPI & WebSocket daemon synchronizing live trade telemetry, timer, and takeover execution.
-- `frontend/src/components/TradingTerminal.tsx`: TradingView charting, Perp/Spot/Futures order form, active positions table, and NEAR Testnet token selector.
+- `frontend/src/components/TradingTerminal.tsx`: TradingView charting, Perp/Spot/Futures order form, active positions table, NEAR Testnet token selector, and Atomic Batch NearBlocks links.
+- `frontend/src/lib/nearTestnet.ts`: Hybrid Ed25519 testnet session manager, live RPC balance fetcher, testnet faucet relayer, and atomic 2-action batch transaction builder (`near-api-js`).
 - `frontend/src/components/VaultEncryptor.tsx`: Client-side WebCrypto AES-256-GCM dual-share key splitter.
 - `frontend/src/components/BeneficiaryClaim.tsx`: Heir decryption portal.
 
