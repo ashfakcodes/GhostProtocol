@@ -54,6 +54,7 @@ default_positions = [
         "pnl_pct": 5.24,
         "stop_loss": 4.98,
         "take_profit": 5.80,
+        "entry_rsi": 31.8,
         "opened_at": int(time.time()) - 3600
     },
     {
@@ -70,6 +71,7 @@ default_positions = [
         "pnl_pct": 2.21,
         "stop_loss": 3020.00,
         "take_profit": 3350.00,
+        "entry_rsi": 34.2,
         "opened_at": int(time.time()) - 7200
     }
 ]
@@ -196,7 +198,14 @@ class GhostAgentCoordinator:
         # 1. Load Owner's Trader DNA (Calibrated through their actual trades!)
         constraints = self.dna_engine.get_prompt_constraints()
         dna_info = self.dna_engine.dna.get("trader_dna", {})
-        log_event("DNA_MIMIC", f"Loaded Recorded Trader DNA: {dna_info.get('archetype')} (Max Lev: {dna_info.get('max_leverage_limit')}x)")
+        pt = dna_info.get("profit_taking_behavior", {})
+        dec = dna_info.get("decision_making_tendencies", {})
+        log_event("DNA_MIMIC", 
+            f"Loaded Behavioral Twin: {dna_info.get('archetype')} | "
+            f"R:R Target: {pt.get('realized_rr_ratio', 2.15)}x | "
+            f"Panic Resilience: {int(dec.get('panic_dump_resilience', 0.94)*100)}% | "
+            f"Harvest: {pt.get('profit_harvest_style', 'SCALE_OUT_TWAP')}"
+        )
 
         # 2. Extract Active Positions opened by the owner
         open_positions = {}
@@ -384,16 +393,45 @@ async def close_position(data: Dict[str, Any]):
 
     if target_pos:
         state["active_positions"] = [p for p in state["active_positions"] if p["id"] != pos_id]
-        # PnL simulation
-        pnl = target_pos.get("pnl", 12.5)
-        log_event("POSITION_CLOSE", f"Owner closed {target_pos['symbol']} {target_pos['mode']} (PnL: +${pnl}). Heartbeat pinged.")
         
-        # Reset heartbeat
+        # Realized exit telemetry calculation
+        exit_price = data.get("exit_price", target_pos.get("mark_price", target_pos.get("entry_price", 1.0)))
+        pnl = target_pos.get("pnl", 12.5)
+        pnl_pct = target_pos.get("pnl_pct", 2.5)
+        
+        close_record = {
+            **target_pos,
+            "exit_price": exit_price,
+            "pnl": pnl,
+            "pnl_pct": pnl_pct
+        }
+        
+        # Feed closed trade into Trader DNA Engine
+        updated_dna = coordinator.dna_engine.record_position_close(close_record)
+        state["trader_dna_raw"] = json.dumps(updated_dna)
+        
+        dna_info = updated_dna.get("trader_dna", {})
+        pt = dna_info.get("profit_taking_behavior", {})
+        dec = dna_info.get("decision_making_tendencies", {})
+        
+        log_event("POSITION_CLOSE", f"Owner closed {target_pos['symbol']} {target_pos['mode']} (PnL: +${pnl:.2f}). Heartbeat reset.")
+        log_event("DNA_TELEMETRY", 
+            f"Closed Telemetry Extracted :: Realized R:R: {pt.get('realized_rr_ratio')}x | "
+            f"Panic Resilience: {int(dec.get('panic_dump_resilience', 0.94)*100)}% | "
+            f"Harvest Style: {pt.get('profit_harvest_style')} | "
+            f"Dip-Buyer Score: {dec.get('dip_buyer_vs_breakout_score')}"
+        )
+        
+        # Reset heartbeat (closing a position is proof of life)
         state["last_heartbeat_ms"] = int(time.time() * 1000)
         state["status"] = "Alive"
         coordinator.warned = False
         await broadcast_state()
-        return {"success": True, "closed": target_pos}
+        return {
+            "success": True, 
+            "closed": target_pos,
+            "trader_dna": dna_info
+        }
 
     return {"error": "Position not found"}
 

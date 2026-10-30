@@ -42,7 +42,7 @@ interface TradingTerminalProps {
   tradeHistory: any[];
   traderDna: any;
   onTradeExecuted: (tradeData: any) => Promise<void>;
-  onClosePosition: (positionId: string) => Promise<void>;
+  onClosePosition: (positionId: string, exitPrice?: number) => Promise<void>;
   status: string;
 }
 
@@ -312,10 +312,10 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
     }
   };
 
-  const handleClose = async (posId: string) => {
+  const handleClose = async (posId: string, exitPrice?: number) => {
     setClosingId(posId);
     try {
-      await onClosePosition(posId);
+      await onClosePosition(posId, exitPrice);
     } catch (err) {
       console.error("Close position failed:", err);
     } finally {
@@ -335,8 +335,53 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
   );
 
   const dna = traderDna?.trader_dna || {};
-  const telemetry = dna.telemetry || {};
-  const risk = dna.risk_vector || {};
+  const patterns = dna.trading_patterns || {
+    execution_style: 'LIMIT_DISCIPLINED',
+    time_horizon: 'SWING_TRADER (1h-24h)',
+    limit_order_ratio_pct: 80.0,
+    perp_ratio_pct: 65.0,
+    spot_ratio_pct: 25.0,
+    futures_ratio_pct: 10.0
+  };
+  const risk = dna.risk_tolerance || dna.risk_vector || {
+    drawdown_tolerance: 0.35,
+    volatility_affinity: 0.65,
+    leverage_appetite: 0.25,
+    patience_score: 0.88
+  };
+  const leveragePrefs = dna.leverage_preferences || {
+    avg_leverage: 2.5,
+    max_recorded_leverage: 3.0,
+    leverage_discipline_grade: 'A (CONSERVATIVE)'
+  };
+  const stopLoss = dna.stop_loss_habits || {
+    stop_loss_adherence_pct: 92.0,
+    avg_stop_loss_pct: 3.2,
+    hard_stop_enforcement: true
+  };
+  const profitTaking = dna.profit_taking_behavior || {
+    realized_rr_ratio: 2.15,
+    tp_target_adherence_pct: 85.0,
+    profit_harvest_style: 'SCALE_OUT_TWAP',
+    avg_take_profit_pct: 6.2,
+    win_rate_pct: 66.7
+  };
+  const decisionTendencies = dna.decision_making_tendencies || {
+    dip_buyer_vs_breakout_score: 0.82,
+    panic_dump_resilience: 0.94,
+    funding_rate_tolerance: 'DEFENSIVE_HEDGER',
+    decision_speed: 'DELIBERATE (LIMIT_PLACED)'
+  };
+  const telemetry = dna.telemetry || {
+    total_trades_recorded: tradeHistory.length,
+    total_positions_closed: 0,
+    avg_leverage: leveragePrefs.avg_leverage || 2.5,
+    realized_rr_ratio: profitTaking.realized_rr_ratio || 2.15,
+    panic_dump_resilience: decisionTendencies.panic_dump_resilience || 0.94,
+    dip_buyer_score: decisionTendencies.dip_buyer_vs_breakout_score || 0.82,
+    profit_harvest_style: profitTaking.profit_harvest_style || 'SCALE_OUT_TWAP',
+    stop_loss_adherence_pct: stopLoss.stop_loss_adherence_pct || 92.0,
+  };
 
   return (
     <div className="space-y-4">
@@ -616,7 +661,7 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
                             </td>
                             <td className="py-3 text-right">
                               <button
-                                onClick={() => handleClose(pos.id)}
+                                onClick={() => handleClose(pos.id, pos.mark_price)}
                                 disabled={closingId === pos.id || status === 'Executed'}
                                 className="px-3 py-1 bg-obsidian-800 hover:bg-obsidian-700 text-slate-300 hover:text-white rounded-lg border border-obsidian-700 text-xs transition-colors cursor-pointer disabled:opacity-50"
                               >
@@ -632,71 +677,228 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
               </div>
             )}
 
-            {/* TAB 2: BEHAVIORAL DNA TELEMETRY */}
+            {/* TAB 2: BEHAVIORAL DNA TELEMETRY (6 Core Behavioral Intelligence Dimensions) */}
             {activeSubTab === 'telemetry' && (
               <div className="space-y-4">
+                {/* Persona Header Banner */}
                 <div className="p-3.5 bg-obsidian-950/80 border border-cyber-cyan/30 rounded-xl flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="p-2 rounded-lg bg-cyber-cyan/10 text-cyber-cyan">
                       <Target className="w-5 h-5" />
                     </div>
                     <div>
-                      <span className="text-[10px] text-slate-400 uppercase font-mono block">Detected Living Persona</span>
+                      <span className="text-[10px] text-slate-400 uppercase font-mono block">6-Dimension Living Behavioral Twin</span>
                       <h4 className="text-sm font-mono font-bold text-white flex items-center gap-2">
-                        {dna.archetype || 'Patience-Disciplined Swing Hedger'}
+                        {dna.archetype || 'Patience-Disciplined Counter-Cyclical Hedger'}
                       </h4>
                     </div>
                   </div>
-                  <span className="text-xs font-mono text-cyber-emerald bg-cyber-emerald/10 border border-cyber-emerald/30 px-3 py-1 rounded-full">
-                    LIVE CALIBRATED
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs font-mono">
-                  <div className="bg-obsidian-950 p-3 rounded-xl border border-obsidian-800">
-                    <span className="text-[10px] text-slate-500 block mb-1">TOTAL TRADES</span>
-                    <span className="text-base font-bold text-white">{telemetry.total_trades_recorded || tradeHistory.length}</span>
-                    <span className="text-[10px] text-slate-400 block mt-0.5">telemetry samples</span>
-                  </div>
-
-                  <div className="bg-obsidian-950 p-3 rounded-xl border border-obsidian-800">
-                    <span className="text-[10px] text-slate-500 block mb-1">PATIENCE SCORE</span>
-                    <span className="text-base font-bold text-cyber-emerald">
-                      {Math.round((risk.patience_score || 0.85) * 100)}%
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-mono text-slate-400 hidden sm:inline">
+                      Telemetry: <strong className="text-white">{telemetry.total_trades_recorded ?? tradeHistory.length}</strong> trades / <strong className="text-white">{telemetry.total_positions_closed ?? 0}</strong> closes
                     </span>
-                    <span className="text-[10px] text-slate-400 block mt-0.5">Limit/TWAP ratio</span>
-                  </div>
-
-                  <div className="bg-obsidian-950 p-3 rounded-xl border border-obsidian-800">
-                    <span className="text-[10px] text-slate-500 block mb-1">STOP-LOSS ADHERENCE</span>
-                    <span className="text-base font-bold text-cyber-cyan">
-                      {telemetry.stop_loss_adherence_pct || 90}%
+                    <span className="text-xs font-mono text-cyber-emerald bg-cyber-emerald/10 border border-cyber-emerald/30 px-2.5 py-0.5 rounded-full">
+                      CALIBRATED
                     </span>
-                    <span className="text-[10px] text-slate-400 block mt-0.5">discipline rating</span>
-                  </div>
-
-                  <div className="bg-obsidian-950 p-3 rounded-xl border border-obsidian-800">
-                    <span className="text-[10px] text-slate-500 block mb-1">AVERAGE LEVERAGE</span>
-                    <span className="text-base font-bold text-cyber-amber">
-                      {telemetry.avg_leverage || leverage}x
-                    </span>
-                    <span className="text-[10px] text-slate-400 block mt-0.5">appetite vector</span>
                   </div>
                 </div>
 
-                {/* Behavioral Tenets */}
+                {/* 6 Behavioral Dimensions Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 text-xs font-mono">
+                  
+                  {/* 1. TRADING PATTERNS */}
+                  <div className="bg-obsidian-950 p-3.5 rounded-xl border border-obsidian-800 flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between text-slate-400 mb-2">
+                        <span className="text-[10px] uppercase font-bold tracking-wider text-slate-300 flex items-center gap-1.5">
+                          <Layers className="w-3.5 h-3.5 text-cyber-cyan" /> 1. Trading Patterns
+                        </span>
+                        <span className="text-[10px] text-cyber-cyan bg-cyber-cyan/10 px-1.5 py-0.5 rounded border border-cyber-cyan/20">
+                          {patterns.execution_style || 'LIMIT_DISCIPLINED'}
+                        </span>
+                      </div>
+                      <div className="space-y-1.5 text-[11px] text-slate-300">
+                        <div className="flex justify-between">
+                          <span className="text-slate-400">Horizon:</span>
+                          <span className="font-bold text-white">{patterns.time_horizon || 'SWING_TRADER (1h-24h)'}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-400">Limit vs Market:</span>
+                          <span className="text-cyber-emerald font-bold">{patterns.limit_order_ratio_pct ?? 80}% Limit</span>
+                        </div>
+                        <div className="flex justify-between text-[10px] text-slate-400 pt-1.5 border-t border-obsidian-800/60">
+                          <span>Mix: Perp {patterns.perp_ratio_pct ?? 65}%</span>
+                          <span>Spot {patterns.spot_ratio_pct ?? 25}%</span>
+                          <span>Fut {patterns.futures_ratio_pct ?? 10}%</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 2. RISK TOLERANCE */}
+                  <div className="bg-obsidian-950 p-3.5 rounded-xl border border-obsidian-800 flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between text-slate-400 mb-2">
+                        <span className="text-[10px] uppercase font-bold tracking-wider text-slate-300 flex items-center gap-1.5">
+                          <Shield className="w-3.5 h-3.5 text-cyber-emerald" /> 2. Risk Tolerance
+                        </span>
+                        <span className="text-[10px] text-cyber-emerald bg-cyber-emerald/10 px-1.5 py-0.5 rounded border border-cyber-emerald/20">
+                          {Math.round((risk.patience_score ?? 0.88) * 100)}% PATIENCE
+                        </span>
+                      </div>
+                      <div className="space-y-1.5 text-[11px] text-slate-300">
+                        <div className="flex justify-between">
+                          <span className="text-slate-400">Max Drawdown:</span>
+                          <span className="font-bold text-white">{Math.round((risk.drawdown_tolerance ?? 0.35) * 100)}% Max</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-400">Volatility Affinity:</span>
+                          <span className="text-cyber-cyan font-bold">{((risk.volatility_affinity ?? 0.65) * 100).toFixed(0)}% Comfort</span>
+                        </div>
+                        <div className="flex justify-between text-[10px] text-slate-400 pt-1.5 border-t border-obsidian-800/60">
+                          <span>Leverage Appetite: {((risk.leverage_appetite ?? 0.25) * 100).toFixed(0)}%</span>
+                          <span className="text-cyber-emerald">Delta-Shielded</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 3. LEVERAGE PREFERENCES */}
+                  <div className="bg-obsidian-950 p-3.5 rounded-xl border border-obsidian-800 flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between text-slate-400 mb-2">
+                        <span className="text-[10px] uppercase font-bold tracking-wider text-slate-300 flex items-center gap-1.5">
+                          <Zap className="w-3.5 h-3.5 text-cyber-amber" /> 3. Leverage Preferences
+                        </span>
+                        <span className="text-[10px] text-cyber-amber bg-cyber-amber/10 px-1.5 py-0.5 rounded border border-cyber-amber/20">
+                          {leveragePrefs.leverage_discipline_grade || 'A (CONSERVATIVE)'}
+                        </span>
+                      </div>
+                      <div className="space-y-1.5 text-[11px] text-slate-300">
+                        <div className="flex justify-between">
+                          <span className="text-slate-400">Average Leverage:</span>
+                          <span className="font-bold text-cyber-amber">{telemetry.avg_leverage ?? leveragePrefs.avg_leverage ?? 2.5}x</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-400">Max Permitted Cap:</span>
+                          <span className="text-white font-bold">{dna.max_leverage_limit ?? 3.0}x</span>
+                        </div>
+                        <div className="flex justify-between text-[10px] text-slate-400 pt-1.5 border-t border-obsidian-800/60">
+                          <span>Recorded Peak: {leveragePrefs.max_recorded_leverage ?? 3.0}x</span>
+                          <span className="text-slate-400">Margin: Isolated</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 4. STOP-LOSS HABITS */}
+                  <div className="bg-obsidian-950 p-3.5 rounded-xl border border-obsidian-800 flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between text-slate-400 mb-2">
+                        <span className="text-[10px] uppercase font-bold tracking-wider text-slate-300 flex items-center gap-1.5">
+                          <Activity className="w-3.5 h-3.5 text-red-400" /> 4. Stop-Loss Habits
+                        </span>
+                        <span className="text-[10px] text-red-400 bg-red-400/10 px-1.5 py-0.5 rounded border border-red-400/20">
+                          {telemetry.stop_loss_adherence_pct ?? stopLoss.stop_loss_adherence_pct ?? 92}% ADHERENCE
+                        </span>
+                      </div>
+                      <div className="space-y-1.5 text-[11px] text-slate-300">
+                        <div className="flex justify-between">
+                          <span className="text-slate-400">Avg Stop Cushion:</span>
+                          <span className="font-bold text-white">{stopLoss.avg_stop_loss_pct ?? 3.2}%</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-400">Hard Stop Mode:</span>
+                          <span className="text-cyber-emerald font-bold">{stopLoss.hard_stop_enforcement !== false ? 'ENFORCED' : 'MANUAL'}</span>
+                        </div>
+                        <div className="flex justify-between text-[10px] text-slate-400 pt-1.5 border-t border-obsidian-800/60">
+                          <span>Discipline Status:</span>
+                          <span className="text-cyber-cyan">Zero Naked Exposure</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 5. PROFIT-TAKING BEHAVIOR */}
+                  <div className="bg-obsidian-950 p-3.5 rounded-xl border border-obsidian-800 flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between text-slate-400 mb-2">
+                        <span className="text-[10px] uppercase font-bold tracking-wider text-slate-300 flex items-center gap-1.5">
+                          <TrendingUp className="w-3.5 h-3.5 text-cyber-emerald" /> 5. Profit-Taking
+                        </span>
+                        <span className="text-[10px] text-cyber-emerald bg-cyber-emerald/10 px-1.5 py-0.5 rounded border border-cyber-emerald/20 font-bold">
+                          {telemetry.realized_rr_ratio ?? profitTaking.realized_rr_ratio ?? 2.15}x R:R
+                        </span>
+                      </div>
+                      <div className="space-y-1.5 text-[11px] text-slate-300">
+                        <div className="flex justify-between">
+                          <span className="text-slate-400">Harvest Style:</span>
+                          <span className="font-bold text-cyber-cyan">{telemetry.profit_harvest_style ?? profitTaking.profit_harvest_style ?? 'SCALE_OUT_TWAP'}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-400">TP Target Adherence:</span>
+                          <span className="text-white font-bold">{profitTaking.tp_target_adherence_pct ?? 85}%</span>
+                        </div>
+                        <div className="flex justify-between text-[10px] text-slate-400 pt-1.5 border-t border-obsidian-800/60">
+                          <span>Avg TP Cushion: {profitTaking.avg_take_profit_pct ?? 6.2}%</span>
+                          <span className="text-cyber-emerald">Win Rate: {profitTaking.win_rate_pct ?? 66.7}%</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 6. DECISION-MAKING TENDENCIES */}
+                  <div className="bg-obsidian-950 p-3.5 rounded-xl border border-obsidian-800 flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between text-slate-400 mb-2">
+                        <span className="text-[10px] uppercase font-bold tracking-wider text-slate-300 flex items-center gap-1.5">
+                          <Clock className="w-3.5 h-3.5 text-purple-400" /> 6. Decision-Making
+                        </span>
+                        <span className="text-[10px] text-purple-400 bg-purple-400/10 px-1.5 py-0.5 rounded border border-purple-400/20">
+                          {decisionTendencies.funding_rate_tolerance || 'DEFENSIVE_HEDGER'}
+                        </span>
+                      </div>
+                      <div className="space-y-1.5 text-[11px] text-slate-300">
+                        <div className="flex justify-between">
+                          <span className="text-slate-400">Panic Resilience:</span>
+                          <span className="font-bold text-cyber-emerald">
+                            {Math.round((telemetry.panic_dump_resilience ?? decisionTendencies.panic_dump_resilience ?? 0.94) * 100)}%
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-400">Dip-Buyer Index:</span>
+                          <span className="text-cyber-cyan font-bold">
+                            {telemetry.dip_buyer_score ?? decisionTendencies.dip_buyer_vs_breakout_score ?? 0.82} / 1.0 (RSI ≤ 38)
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-[10px] text-slate-400 pt-1.5 border-t border-obsidian-800/60">
+                          <span>Decision Velocity:</span>
+                          <span className="text-slate-300">{decisionTendencies.decision_speed || 'DELIBERATE (LIMIT)'}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                </div>
+
+                {/* Extracted Immutable Behavioral Tenets (Ghost Takeover Rules) */}
                 <div className="bg-obsidian-950 p-3.5 rounded-xl border border-obsidian-800 text-xs font-mono">
-                  <span className="text-[10px] text-slate-400 uppercase tracking-wider block mb-2 font-bold">
-                    Extracted Behavioral Tenets (Applied by Ghost Agent on Takeover):
-                  </span>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">
+                      Extracted Immutable Tenets (Fed to OpenRouter ling-3.0-flash at Takeover):
+                    </span>
+                    <span className="text-[10px] text-slate-500">Autonomous Mimicry Constraints</span>
+                  </div>
                   <ul className="space-y-1.5 text-slate-300">
                     {(dna.personal_tenets || [
-                      "Never market-sell into an oversold RSI (< 28).",
-                      "Always execute unwinds via TWAP batches across 3 intervals.",
+                      "Never market-sell into an oversold RSI (< 38).",
+                      "Enforce minimum 2.15x Risk/Reward discipline before exiting profitable positions.",
+                      "Unwind positions via SCALE_OUT_TWAP with max leverage cap of 3.0x.",
+                      "Maintain 94% panic resilience holding through flash-crash spikes.",
                       "Consolidate all peripheral LPs into USDC via NEAR Intents."
                     ]).map((tenet: string, idx: number) => (
                       <li key={idx} className="flex items-start gap-2">
-                        <span className="text-scarlet-400 font-bold">›</span>
+                        <span className="text-cyber-cyan font-bold">›</span>
                         <span>{tenet}</span>
                       </li>
                     ))}

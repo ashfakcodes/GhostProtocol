@@ -42,19 +42,58 @@ export const TraderDNASetup: React.FC<TraderDNASetupProps> = ({ onSaveDNA }) => 
         archetype,
         max_slippage_tolerance_pct: 0.25,
         unwind_strategy: unwindStrategy,
-        panic_dump_threshold_rsi: 28,
+        panic_dump_threshold_rsi: 30,
         perp_action: 'CLOSE_ON_REBOUND_OR_TRAILING_STOP',
         preferred_reserve_asset: reserveAsset,
         max_leverage_limit: leverage,
+        trading_patterns: {
+          execution_style: 'LIMIT_DISCIPLINED',
+          time_horizon: 'SWING_TRADER (1h-24h)',
+          limit_order_ratio_pct: 80.0,
+          perp_ratio_pct: 65.0,
+          spot_ratio_pct: 25.0,
+          futures_ratio_pct: 10.0
+        },
+        risk_tolerance: {
+          drawdown_tolerance: drawdown / 100,
+          volatility_affinity: volatility / 100,
+          leverage_appetite: leverage / 20,
+          patience_score: patience / 100
+        },
         risk_vector: {
           drawdown_tolerance: drawdown / 100,
           volatility_affinity: volatility / 100,
           leverage_appetite: leverage / 20,
           patience_score: patience / 100
         },
+        leverage_preferences: {
+          avg_leverage: Math.min(leverage, 2.5),
+          max_recorded_leverage: leverage,
+          leverage_discipline_grade: leverage <= 3 ? 'A (CONSERVATIVE)' : leverage <= 7 ? 'B (MODERATE)' : 'C (AGGRESSIVE)'
+        },
+        stop_loss_habits: {
+          stop_loss_adherence_pct: 92.0,
+          avg_stop_loss_pct: 3.2,
+          hard_stop_enforcement: true
+        },
+        profit_taking_behavior: {
+          realized_rr_ratio: 2.15,
+          tp_target_adherence_pct: 85.0,
+          profit_harvest_style: 'SCALE_OUT_TWAP',
+          avg_take_profit_pct: 6.2,
+          win_rate_pct: 66.7
+        },
+        decision_making_tendencies: {
+          dip_buyer_vs_breakout_score: 0.82,
+          panic_dump_resilience: patience / 100,
+          funding_rate_tolerance: 'DEFENSIVE_HEDGER',
+          decision_speed: 'DELIBERATE (LIMIT_PLACED)'
+        },
         personal_tenets: [
-          `Never market-sell into an oversold RSI (< 30).`,
-          `Execute cross-chain unwinds via ${unwindStrategy}.`,
+          `Never market-sell into an oversold RSI (< 38).`,
+          `Enforce minimum 2.15x Risk/Reward discipline before exiting profitable positions.`,
+          `Unwind positions via SCALE_OUT_TWAP with max leverage cap of ${leverage}x.`,
+          `Maintain ${patience}% panic resilience holding through flash-crash spikes.`,
           `Consolidate all peripheral tokens into ${reserveAsset} via NEAR Intents.`
         ]
       }

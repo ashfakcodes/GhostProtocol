@@ -243,16 +243,22 @@ export function App() {
     ]);
   };
 
-  const handleClosePosition = async (posId: string) => {
+  const handleClosePosition = async (posId: string, exitPrice?: number) => {
     setTimeRemainingMs(15000);
     setStatus('Alive');
 
     try {
-      await fetch('http://localhost:8000/api/close_position', {
+      const res = await fetch('http://localhost:8000/api/close_position', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ position_id: posId })
+        body: JSON.stringify({ position_id: posId, exit_price: exitPrice })
       });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.trader_dna) {
+          setTraderDna({ trader_dna: data.trader_dna });
+        }
+      }
     } catch (e) {}
 
     setActivePositions((prev) => prev.filter(p => p.id !== posId));
