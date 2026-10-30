@@ -45,3 +45,25 @@
 - **Verification:**
   - `tsc && vite build` passed cleanly with 0 errors (`dist/assets/index-CLiCcPBF.js`).
   - Backend `ghost_agent.py` loaded and verified with `/api/testnet/faucet` and atomic batch ingestion.
+
+
+### 3. Real-Time Price Streamer, Dynamic PnL Engine & SL/TP Auto-Trigger
+- **Architectural Directive:** Live public crypto feeds (Binance REST) + micro-volatility tick engine (every 1s) + dynamic mark price & PnL calculation + SL/TP auto-execution.
+- **Core Features Implemented:**
+  1. **Live Price Feed Engine (`frontend/src/lib/priceFeed.ts`):**
+     - Streams continuous real-time price updates for all NEAR testnet & cross-chain pairs.
+     - Fetches live market baseline from Binance public ticker API, with sub-second realistic micro-volatility drift.
+     - Computes dynamic PnL and PnL % for active positions based on live mark prices.
+     - Built-in SL/TP trigger threshold detector.
+  2. **Active Positions Table Real-Time Dynamic Rendering (`TradingTerminal.tsx`):**
+     - Mark Price now updates live with directional color feedback (green on tick up, red on tick down).
+     - PnL ($) and PnL (%) recalculate dynamically on every price tick.
+     - Dynamic closing price passed to `handleClose` on exit.
+  3. **Auto-Trigger Engine for SL / TP:**
+     - Continuously monitors active positions against live mark prices.
+     - Automatically closes breached positions, triggers profit-harvesting/stop-loss exit, and synchronizes exit telemetry directly into the living Trader DNA engine.
+  4. **Backend Daemon Synchronization (`agent/ghost_agent.py`):**
+     - Micro-ticks active positions in `run_loop()` so WebSocket broadcasts reflect continuous live PnL.
+- **Verification:**
+  - `tsc && vite build` built cleanly in 2.23s with 0 errors.
+  - Node verification confirmed PnL math and SL/TP trigger evaluations.

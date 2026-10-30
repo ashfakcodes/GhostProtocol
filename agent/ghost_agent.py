@@ -2,6 +2,7 @@ import asyncio
 import time
 import json
 import uuid
+import random
 from typing import Dict, Any, List
 from fastapi import FastAPI, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
@@ -175,6 +176,20 @@ class GhostAgentCoordinator:
             time_remaining = (state["last_heartbeat_ms"] + state["timeout_period_ms"]) - now_ms
 
             if state["status"] != "Executed":
+                # Real-time position tick evaluation (dynamic mark price & PnL)
+                for p in state["active_positions"]:
+                    drift = (random.random() - 0.495) * 0.0016
+                    curr = p.get("mark_price", p.get("entry_price", 5.24))
+                    new_mark = round(curr * (1 + drift), 2)
+                    p["mark_price"] = new_mark
+                    is_long = p.get("side") == "LONG"
+                    entry = p.get("entry_price", 1.0)
+                    size = p.get("size", 10.0)
+                    margin = p.get("margin", (size * entry) / max(p.get("leverage", 1.0), 1.0))
+                    raw_pnl = (new_mark - entry if is_long else entry - new_mark) * size
+                    p["pnl"] = round(raw_pnl, 2)
+                    p["pnl_pct"] = round((raw_pnl / margin) * 100, 2) if margin > 0 else 0.0
+
                 if time_remaining <= 0:
                     state["status"] = "GhostAwake"
                     await self.execute_takeover()

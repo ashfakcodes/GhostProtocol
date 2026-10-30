@@ -15,6 +15,12 @@ import {
   resetSessionAccount,
   TESTNET_CONFIG 
 } from '../lib/nearTestnet';
+import {
+  startLivePriceTicker,
+  calculatePositionPnL,
+  checkSLTPTrigger,
+  INITIAL_PRICES
+} from '../lib/priceFeed';
 
 export interface Position {
   id: string;
@@ -250,6 +256,16 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [closingId, setClosingId] = useState<string | null>(null);
 
+  // Live Crypto Price Feed & Direction State
+  const [livePrices, setLivePrices] = useState<Record<string, number>>(INITIAL_PRICES);
+  const [priceDirections, setPriceDirections] = useState<Record<string, 'UP' | 'DOWN' | 'SAME'>>({});
+  const [autoTriggeredNotice, setAutoTriggeredNotice] = useState<{
+    posId: string;
+    type: 'SL' | 'TP';
+    symbol: string;
+    price: number;
+  } | null>(null);
+
   // Near Testnet Session & Live Balance State
   const [testnetAccount, setTestnetAccount] = useState<{
     accountId: string;
@@ -445,6 +461,32 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
       setClosingId(null);
     }
   };
+
+  // Real-Time Price Streamer & SL/TP Auto-Trigger Watcher
+  useEffect(() => {
+    const cleanup = startLivePriceTicker((prices, directions) => {
+      setLivePrices(prices);
+      setPriceDirections(directions);
+
+      // Evaluate active positions for real-time SL / TP triggers
+      activePositions.forEach((pos) => {
+        const mark = prices[pos.symbol] ?? pos.mark_price ?? pos.entry_price;
+        const trigger = checkSLTPTrigger(pos, mark);
+        if (trigger.triggered && !closingId && status !== 'Executed') {
+          setAutoTriggeredNotice({
+            posId: pos.id,
+            type: trigger.type!,
+            symbol: pos.symbol,
+            price: trigger.triggerPrice!
+          });
+          handleClose(pos.id, trigger.triggerPrice);
+          setTimeout(() => setAutoTriggeredNotice(null), 5000);
+        }
+      });
+    }, 1000);
+
+    return cleanup;
+  }, [activePositions, closingId, status]);
 
   // Calculations
   const currentPrice = parseFloat(priceInput) || selectedPair.price;
@@ -814,7 +856,7 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
 
                       <div className="text-right font-mono text-xs">
                         <span className="block font-medium text-white">
-                          ${pair.price >= 1 ? pair.price.toLocaleString() : pair.price}
+                          ${(livePrices[pair.id] ?? pair.price) >= 1 ? (livePrices[pair.id] ?? pair.price).toLocaleString() : (livePrices[pair.id] ?? pair.price)}
                         </span>
                         <span className={`text-[10px] ${pair.change24h.startsWith('+') ? 'text-emerald-400' : 'text-red-400'}`}>
                           {pair.change24h}
@@ -832,7 +874,13 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
         <div className="flex flex-wrap items-center gap-6 text-xs font-mono">
           <div>
             <span className="text-[10px] text-slate-500 uppercase block">Mark Price</span>
-            <span className="text-white font-bold text-sm">${selectedPair.price.toLocaleString()}</span>
+            <span className={`font-bold text-sm flex items-center gap-1 transition-colors ${
+              priceDirections[selectedPair.id] === 'UP' ? 'text-cyber-emerald' : priceDirections[selectedPair.id] === 'DOWN' ? 'text-scarlet-400' : 'text-white'
+            }`}>
+              ${(livePrices[selectedPair.id] ?? selectedPair.price) >= 1 ? (livePrices[selectedPair.id] ?? selectedPair.price).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : (livePrices[selectedPair.id] ?? selectedPair.price)}
+              {priceDirections[selectedPair.id] === 'UP' && <ArrowUpRight className="w-3.5 h-3.5 text-cyber-emerald" />}
+              {priceDirections[selectedPair.id] === 'DOWN' && <ArrowDownRight className="w-3.5 h-3.5 text-scarlet-400" />}
+            </span>
           </div>
           <div>
             <span className="text-[10px] text-slate-500 uppercase block">24h Change</span>
@@ -933,7 +981,21 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
 
             {/* TAB 1: ACTIVE POSITIONS */}
             {activeSubTab === 'positions' && (
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto space-y-3">
+                {autoTriggeredNotice && (
+                  <div className="p-2.5 rounded-lg bg-obsidian-950 border border-cyber-amber/40 flex items-center justify-between text-xs font-mono text-cyber-amber">
+                    <div className="flex items-center gap-2">
+                      <Zap className="w-3.5 h-3.5 text-cyber-amber shrink-0" />
+                      <span>
+                        <strong>{autoTriggeredNotice.type === 'SL' ? 'Stop-Loss' : 'Take-Profit'} Auto-Triggered:</strong> Closed {autoTriggeredNotice.symbol} position at ${autoTriggeredNotice.price.toFixed(2)}. Realized exit telemetry synchronized to Trader DNA.
+                      </span>
+                    </div>
+                    <span className="text-[10px] bg-cyber-amber/10 border border-cyber-amber/30 px-2 py-0.5 rounded font-bold">
+                      PROFIT-HARVEST SYNC
+                    </span>
+                  </div>
+                )}
+
                 {activePositions.length === 0 ? (
                   <div className="text-center py-10 text-slate-500 text-xs font-mono">
                     No active positions open. Place a Perp, Spot, or Futures trade on the right.
@@ -954,7 +1016,10 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
                     </thead>
                     <tbody className="divide-y divide-obsidian-800/50">
                       {activePositions.map((pos) => {
-                        const isProfit = pos.pnl >= 0;
+                        const currentMark = livePrices[pos.symbol] ?? pos.mark_price ?? pos.entry_price;
+                        const { pnl, pnlPct, isProfit } = calculatePositionPnL(pos, currentMark);
+                        const tickDir = priceDirections[pos.symbol] || 'SAME';
+
                         return (
                           <tr key={pos.id} className="hover:bg-obsidian-800/30 transition-colors">
                             <td className="py-3">
@@ -976,7 +1041,11 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
                             <td className="py-3">
                               <span className="text-slate-300 block">${pos.entry_price.toFixed(2)}</span>
                               <div className="flex items-center gap-1.5 text-[10px]">
-                                <span className="text-slate-500">${pos.mark_price.toFixed(2)}</span>
+                                <span className={`font-mono transition-colors ${
+                                  tickDir === 'UP' ? 'text-cyber-emerald font-bold' : tickDir === 'DOWN' ? 'text-red-400 font-bold' : 'text-slate-400'
+                                }`}>
+                                  ${currentMark >= 1 ? currentMark.toFixed(2) : currentMark}
+                                </span>
                                 {pos.nearblocks_url && (
                                   <a
                                     href={pos.nearblocks_url}
@@ -994,11 +1063,11 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
                               ${pos.margin.toFixed(2)}
                             </td>
                             <td className="py-3">
-                              <span className={`font-bold block ${isProfit ? 'text-cyber-emerald' : 'text-scarlet-400'}`}>
-                                {isProfit ? '+' : ''}${pos.pnl.toFixed(2)}
+                              <span className={`font-bold block transition-colors ${isProfit ? 'text-cyber-emerald' : 'text-scarlet-400'}`}>
+                                {isProfit ? '+' : ''}${pnl.toFixed(2)}
                               </span>
-                              <span className={`text-[10px] ${isProfit ? 'text-cyber-emerald' : 'text-scarlet-400'}`}>
-                                ({isProfit ? '+' : ''}{pos.pnl_pct.toFixed(2)}%)
+                              <span className={`text-[10px] transition-colors ${isProfit ? 'text-cyber-emerald' : 'text-scarlet-400'}`}>
+                                ({isProfit ? '+' : ''}{pnlPct.toFixed(2)}%)
                               </span>
                             </td>
                             <td className="py-3 text-[11px] text-slate-400">
@@ -1007,7 +1076,7 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
                             </td>
                             <td className="py-3 text-right">
                               <button
-                                onClick={() => handleClose(pos.id, pos.mark_price)}
+                                onClick={() => handleClose(pos.id, currentMark)}
                                 disabled={closingId === pos.id || status === 'Executed'}
                                 className="px-3 py-1 bg-obsidian-800 hover:bg-obsidian-700 text-slate-300 hover:text-white rounded-lg border border-obsidian-700 text-xs transition-colors cursor-pointer disabled:opacity-50"
                               >
