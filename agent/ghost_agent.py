@@ -1,6 +1,7 @@
 import asyncio
 import time
 import json
+import uuid
 from typing import Dict, Any, List
 from fastapi import FastAPI, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
@@ -37,6 +38,42 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Initial sample positions
+default_positions = [
+    {
+        "id": "pos-near-01",
+        "symbol": "NEAR/USDC",
+        "mode": "PERP",
+        "side": "LONG",
+        "size": 500.0,
+        "entry_price": 5.15,
+        "mark_price": 5.24,
+        "leverage": 3.0,
+        "margin": 858.33,
+        "pnl": 45.00,
+        "pnl_pct": 5.24,
+        "stop_loss": 4.98,
+        "take_profit": 5.80,
+        "opened_at": int(time.time()) - 3600
+    },
+    {
+        "id": "pos-eth-02",
+        "symbol": "ETH/USDC",
+        "mode": "PERP",
+        "side": "LONG",
+        "size": 1.5,
+        "entry_price": 3120.00,
+        "mark_price": 3154.50,
+        "leverage": 2.0,
+        "margin": 2340.00,
+        "pnl": 51.75,
+        "pnl_pct": 2.21,
+        "stop_loss": 3020.00,
+        "take_profit": 3350.00,
+        "opened_at": int(time.time()) - 7200
+    }
+]
+
 # Shared In-Memory State for Demo & Synchronization
 state = {
     "owner": OWNER_ACCOUNT_ID,
@@ -50,6 +87,35 @@ state = {
     "encrypted_vault_hash": "QmZ84bN81GhostVaultEncrypted",
     "trader_dna_raw": json.dumps(TraderDNAEngine.default_dna()),
     "treasury_near": 12.5,
+    "active_positions": default_positions.copy(),
+    "trade_history": [
+        {
+            "id": "tr-hist-01",
+            "symbol": "NEAR/USDC",
+            "mode": "PERP",
+            "side": "BUY",
+            "order_type": "LIMIT",
+            "size": 500.0,
+            "price": 5.15,
+            "leverage": 3.0,
+            "has_stop_loss": True,
+            "stop_loss_pct": 3.3,
+            "timestamp": int(time.time()) - 3600
+        },
+        {
+            "id": "tr-hist-02",
+            "symbol": "ETH/USDC",
+            "mode": "PERP",
+            "side": "BUY",
+            "order_type": "LIMIT",
+            "size": 1.5,
+            "price": 3120.00,
+            "leverage": 2.0,
+            "has_stop_loss": True,
+            "stop_loss_pct": 3.2,
+            "timestamp": int(time.time()) - 7200
+        }
+    ],
     "live_logs": []
 }
 
@@ -77,7 +143,10 @@ async def broadcast_state():
         "timeout_period_ms": state["timeout_period_ms"],
         "treasury_near": state["treasury_near"],
         "key_share_a": state["key_share_a"] if state["status"] in ["GhostAwake", "Executed"] else None,
-        "logs": state["live_logs"][-15:]
+        "active_positions": state["active_positions"],
+        "trade_history": state["trade_history"][-10:],
+        "trader_dna": json.loads(state["trader_dna_raw"]),
+        "logs": state["live_logs"][-20:]
     }
 
     for ws in active_websockets:
@@ -121,30 +190,46 @@ class GhostAgentCoordinator:
             await asyncio.sleep(SIMULATED_POLL_INTERVAL_S)
 
     async def execute_takeover(self):
-        log_event("CRITICAL", "Proof-of-Life expired. Smart contract verified absence.")
+        log_event("CRITICAL", "Proof-of-Life expired. Smart contract verified absence on NEAR.")
         log_event("GHOST_BRAIN", "Awakening Ghost Agent Sovereign Executor on NEAR...")
 
-        # 1. Load Owner's Trader DNA
+        # 1. Load Owner's Trader DNA (Calibrated through their actual trades!)
         constraints = self.dna_engine.get_prompt_constraints()
-        log_event("DNA_MIMIC", f"Loaded Trader DNA: {self.dna_engine.dna.get('trader_dna', {}).get('archetype')}")
+        dna_info = self.dna_engine.dna.get("trader_dna", {})
+        log_event("DNA_MIMIC", f"Loaded Recorded Trader DNA: {dna_info.get('archetype')} (Max Lev: {dna_info.get('max_leverage_limit')}x)")
 
-        # 2. Market State & Adversarial Combat Reasoning
+        # 2. Extract Active Positions opened by the owner
+        open_positions = {}
+        for p in state["active_positions"]:
+            key = f"{p['symbol'].replace('/', '_')}_{p['mode'].lower()}"
+            open_positions[key] = f"{p['side']} {p['size']} @ {p['entry_price']} ({p['leverage']}x leverage)"
+
+        if not open_positions:
+            open_positions = {
+                "solana_spot": "25.0 SOL",
+                "arbitrum_lp": "1.5 ETH / USDC",
+                "hyperliquid_perp": "0.5 BTC Long"
+            }
+
         mock_market = {
-            "eth_price": 3150, "eth_rsi": 32.4,
-            "sol_price": 182, "sol_rsi": 28.1,
+            "eth_price": 3154.50, "eth_rsi": 32.4,
+            "sol_price": 182.20, "sol_rsi": 28.1,
+            "near_price": 5.24, "near_rsi": 35.6,
             "volatility_index": "14.2%", "funding_rate": "-0.018%"
         }
-        mock_positions = {
-            "solana_spot": "25.0 SOL",
-            "arbitrum_lp": "1.5 ETH / USDC",
-            "hyperliquid_perp": "0.5 BTC Long"
-        }
         
-        log_event("COMBAT_AI", "Analyzing live market depth, funding rates, and RSI against Trader DNA...")
-        plan = await self.reasoner.analyze_and_plan(constraints, mock_market, mock_positions)
+        log_event("COMBAT_AI", f"Synthesizing market depth with OpenRouter ({self.reasoner.openrouter_model})...")
+        plan = await self.reasoner.analyze_and_plan(constraints, mock_market, open_positions)
         log_event("REASONING", plan.get("reasoning_log", "Executing optimal protective unwind."))
 
-        # 3. Execute NEAR Intents
+        # 3. Unwind & Settle Positions via NEAR Intents & Chain Signatures
+        for pos in state["active_positions"]:
+            log_event("CHAIN_SIG", f"NEAR MPC (v1.signer) signing perp closure for {pos['symbol']} {pos['mode']}...")
+            await asyncio.sleep(0.3)
+
+        # Clear active positions as they are unwound
+        state["active_positions"] = []
+
         for action in plan.get("unwind_actions", []):
             asset_in = action.get("asset_in")
             amount = action.get("amount")
@@ -155,7 +240,7 @@ class GhostAgentCoordinator:
                 asset_in=asset_in,
                 amount_in=amount,
                 asset_out="USDC",
-                min_amount_out=amount * (180 if asset_in == "SOL" else 3100),
+                min_amount_out=amount * (180 if asset_in == "SOL" else (5.10 if asset_in == "NEAR" else 3100)),
                 beneficiary_recipient=state["beneficiary"]
             )
             receipt = await self.intents.broadcast_and_settle(payload)
@@ -170,13 +255,13 @@ class GhostAgentCoordinator:
         await self.telegram.send_beneficiary_settlement(
             state["beneficiary_tg"],
             {
-                "consolidated_amount": "9,250 USDC + 12.45 NEAR",
+                "consolidated_amount": "14,820 USDC + 12.45 NEAR",
                 "intent_tx": "8zWp882f09ba1923NEARIntentSettled",
                 "beneficiary": state["beneficiary"],
                 "key_share_a": state["key_share_a"]
             }
         )
-        log_event("SUCCESS", "Protocol finalized. Beneficiary received funds & decryption Share A.")
+        log_event("SUCCESS", "Protocol finalized. Beneficiary received consolidated assets & decryption Share A.")
 
 coordinator = GhostAgentCoordinator()
 
@@ -193,7 +278,8 @@ async def get_status():
     return {
         **state,
         "time_remaining_ms": max(0, time_remaining_ms),
-        "key_share_a": state["key_share_a"] if state["status"] in ["GhostAwake", "Executed"] else None
+        "key_share_a": state["key_share_a"] if state["status"] in ["GhostAwake", "Executed"] else None,
+        "trader_dna": json.loads(state["trader_dna_raw"])
     }
 
 @app.post("/api/heartbeat")
@@ -203,9 +289,113 @@ async def ping_heartbeat():
     state["last_heartbeat_ms"] = int(time.time() * 1000)
     state["status"] = "Alive"
     coordinator.warned = False
-    log_event("HEARTBEAT", "Manual/Userbot ping received. Countdown reset.")
+    log_event("HEARTBEAT", "Proof-of-Life verified on NEAR. Timer reset.")
     await broadcast_state()
     return {"success": True, "last_heartbeat_ms": state["last_heartbeat_ms"]}
+
+@app.post("/api/trade")
+async def record_owner_trade(trade_data: Dict[str, Any]):
+    """
+    Submits a trade in the Trading Interface (Perp / Spot / Futures).
+    - Acts as instant Proof-of-Life (resets heartbeat timer).
+    - Extracts telemetry and recalibrates Trader DNA behavioral twin.
+    - Adds to active positions.
+    """
+    if state["status"] == "Executed":
+        return {"error": "Protocol is already finalized. Owner cannot trade."}
+
+    # 1. Reset Proof-of-Life Heartbeat (Trading proves the owner is alive!)
+    state["last_heartbeat_ms"] = int(time.time() * 1000)
+    state["status"] = "Alive"
+    coordinator.warned = False
+
+    # 2. Ingest Trade into DNA Telemetry Engine
+    updated_dna = coordinator.dna_engine.record_trade(trade_data)
+    state["trader_dna_raw"] = json.dumps(updated_dna)
+    dna_info = updated_dna.get("trader_dna", {})
+
+    # 3. Create or Update Active Position (if Perp or Futures)
+    symbol = trade_data.get("symbol", "NEAR/USDC")
+    mode = trade_data.get("mode", "PERP")
+    side = trade_data.get("side", "BUY")
+    size = float(trade_data.get("size", 100.0))
+    price = float(trade_data.get("price", 5.24))
+    leverage = float(trade_data.get("leverage", 1.0) if mode != "SPOT" else 1.0)
+    stop_loss = float(trade_data.get("stop_loss_pct", 2.5))
+    take_profit = float(trade_data.get("take_profit_pct", 5.0))
+
+    pos_id = f"pos-{uuid.uuid4().hex[:8]}"
+    new_position = {
+        "id": pos_id,
+        "symbol": symbol,
+        "mode": mode,
+        "side": "LONG" if side == "BUY" else "SHORT",
+        "size": size,
+        "entry_price": price,
+        "mark_price": price,
+        "leverage": leverage,
+        "margin": round((size * price) / leverage, 2),
+        "pnl": 0.0,
+        "pnl_pct": 0.0,
+        "stop_loss": round(price * (1 - stop_loss/100) if side == "BUY" else price * (1 + stop_loss/100), 4),
+        "take_profit": round(price * (1 + take_profit/100) if side == "BUY" else price * (1 - take_profit/100), 4),
+        "opened_at": int(time.time())
+    }
+
+    if mode in ["PERP", "FUTURES"]:
+        state["active_positions"].insert(0, new_position)
+
+    # 4. Save to history
+    state["trade_history"].append({
+        "id": pos_id,
+        "symbol": symbol,
+        "mode": mode,
+        "side": side,
+        "order_type": trade_data.get("order_type", "LIMIT"),
+        "size": size,
+        "price": price,
+        "leverage": leverage,
+        "has_stop_loss": trade_data.get("has_stop_loss", True),
+        "stop_loss_pct": stop_loss,
+        "timestamp": int(time.time())
+    })
+
+    log_event("TRADE_TELEMETRY", 
+        f"Owner placed {mode} {side} {size} {symbol} ({leverage}x). "
+        f"Twin Archetype: {dna_info.get('archetype')}, Patience: {dna_info.get('risk_vector', {}).get('patience_score')}. Timer reset."
+    )
+
+    await broadcast_state()
+    return {
+        "success": True,
+        "position": new_position,
+        "trader_dna": dna_info,
+        "last_heartbeat_ms": state["last_heartbeat_ms"]
+    }
+
+@app.post("/api/close_position")
+async def close_position(data: Dict[str, Any]):
+    pos_id = data.get("position_id")
+    target_pos = None
+    for p in state["active_positions"]:
+        if p["id"] == pos_id:
+            target_pos = p
+            break
+
+    if target_pos:
+        state["active_positions"] = [p for p in state["active_positions"] if p["id"] != pos_id]
+        # PnL simulation
+        pnl = target_pos.get("pnl", 12.5)
+        log_event("POSITION_CLOSE", f"Owner closed {target_pos['symbol']} {target_pos['mode']} (PnL: +${pnl}). Heartbeat pinged.")
+        
+        # Reset heartbeat
+        state["last_heartbeat_ms"] = int(time.time() * 1000)
+        state["status"] = "Alive"
+        coordinator.warned = False
+        await broadcast_state()
+        return {"success": True, "closed": target_pos}
+
+    return {"error": "Position not found"}
 
 @app.post("/api/update_dna")
 async def update_dna(new_dna: Dict[str, Any]):
@@ -219,8 +409,9 @@ async def reset_demo():
     state["last_heartbeat_ms"] = int(time.time() * 1000)
     state["status"] = "Alive"
     state["treasury_near"] = 12.5
+    state["active_positions"] = default_positions.copy()
     coordinator.warned = False
-    log_event("SYSTEM", "Demo environment reset to initial Alive state.")
+    log_event("SYSTEM", "Demo environment reset to initial Alive state with default active positions.")
     await broadcast_state()
     return {"success": True}
 

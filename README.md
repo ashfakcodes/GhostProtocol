@@ -56,14 +56,15 @@ flowchart TD
 
 ---
 
-## ⚡ The 4 Core Pillars
+## ⚡ The 5 Core Pillars
 
 | Pillar | Component | Technology | Role |
 | :--- | :--- | :--- | :--- |
-| **1. Zero-Knowledge Vault** | Client-Side Estate Vault | WebCrypto **AES-256-GCM** + XOR Dual-Share Key Splitting | Encrypts private notes & cold storage seeds client-side. The network never sees raw keys. |
-| **2. Onchain Watchman** | Deterministic Lockout Contract | **NEAR Smart Contract** (`contracts/src/lib.rs`) | Maintains immutable heartbeat timer. Agent has **zero authority** while user is alive (`assert!(now > last_heartbeat + timeout)`). |
-| **3. The Living Trader DNA** | Behavioral Twin & Market Reasoner | **Python** + **OpenRouter (`inclusionai/ling-3.0-flash`)** + `trader_dna_engine.py` | Encodes user's drawdown tolerance, leverage limits, and exit habits; defends estate from toxic flow & flash-crash dumps. |
-| **4. Sovereign Settlement** | Multi-Chain Sweeper & Payout Engine | **NEAR Intents** + **NEAR Chain Signatures (`v1.signer`)** | Closes perps on external chains (Arbitrum, Solana, Hyperliquid) and swaps cross-chain tokens into clean USDC for beneficiaries. |
+| **1. Trading & Behavioral Profiler** | Native Trading Terminal | **TradingView Chart Widget** + Perp/Spot/Futures Order Router | Enables live trading while automatically capturing leverage, order type, and stop-loss habits to calibrate the owner's Behavioral Twin. |
+| **2. Zero-Knowledge Vault** | Client-Side Estate Vault | WebCrypto **AES-256-GCM** + XOR Dual-Share Key Splitting | Encrypts private notes & cold storage seeds client-side. The network never sees raw keys. |
+| **3. Onchain Watchman** | Deterministic Lockout Contract | **NEAR Smart Contract** (`contracts/src/lib.rs`) | Maintains immutable heartbeat timer. Agent has **zero authority** while user is alive (`assert!(now > last_heartbeat + timeout)`). |
+| **4. The Living Trader DNA** | Behavioral Twin & Market Reasoner | **Python** + **OpenRouter (`inclusionai/ling-3.0-flash`)** + `trader_dna_engine.py` | Encodes user's drawdown tolerance, leverage limits, and exit habits; defends estate from toxic flow & flash-crash dumps. |
+| **5. Sovereign Settlement** | Multi-Chain Sweeper & Payout Engine | **NEAR Intents** + **NEAR Chain Signatures (`v1.signer`)** | Closes perps on external chains (Arbitrum, Solana, Hyperliquid) and swaps cross-chain tokens into clean USDC for beneficiaries. |
 
 ---
 
@@ -144,10 +145,10 @@ Double-click `scripts/run_demo.bat` or run:
 
 | Timestamp | Phase | On-Screen Action | Voiceover / Narrative |
 | :--- | :--- | :--- | :--- |
-| **0:00 – 0:45** | **The Setup** | Open dashboard (`localhost:3000`). Type a sensitive legacy note with a cold-storage seed. Click **"Seal Vault"**. Observe Share A locked onchain and Share B generated for the heir. Calibrate **Trader DNA** to *"Disciplined Swing Hedger"*. | *"Meet GhostProtocol: a post-human sovereign executor on NEAR. We encrypt our sensitive keys with AES-256-GCM. The network never sees raw keys. And we calibrate our financial twin."* |
-| **0:45 – 1:30** | **The Disappearance** | Watch the circular HUD countdown tick from `15s` down toward zero. Click **"Ping Heartbeat"** once to demonstrate life verification resetting the timer. Let the timer run down past `5s`. Observe status flip to **WARNING (Grace Period)**. | *"Every day you're alive, passive pings reset your timer. But if you disappear, the contract enters an emergency grace period, warning you on Telegram."* |
-| **1:30 – 2:20** | **The Ghost Awakens** | Timer hits `00:00`. Status shifts to **GHOST AGENT AWAKE**. Switch to **"Ghost Agent Combat Feed"**. Watch the terminal stream live AI thoughts: RSI calculation, anti-dump constraint check, and NEAR Intent submission. | *"Timer expires. Proof-of-Absence is cryptographically confirmed on NEAR. The Ghost Agent loads the owner's Trader DNA and fires NEAR Intents to swap volatile tokens into USDC."* |
-| **2:20 – 3:00** | **The Legacy Delivery** | Switch to **"Beneficiary Recovery Portal"**. Notice **Share A** has been released by the contract. Paste the heir's **Share B**. Click **"Decrypt Sovereign Legacy Document"**. Note and seed are revealed live on screen. | *"The smart contract releases Share A, streams the consolidated USDC, and the beneficiary decrypts the estate in seconds. Self-sovereign wealth passed on seamlessly."* |
+| **0:00 – 0:50** | **Live Trading & Behavioral Capture** | Open dashboard (`localhost:3000`). Show the real-time **TradingView chart** for NEAR/USDC. Toggle between **PERP**, **SPOT**, and **FUTURES**. Submit a 3x NEAR Perp Long with a 3.0% Stop Loss. Point out that trading executes a signed `ping_heartbeat()` on NEAR and instantly extracts telemetry (Patience score: 92%, Archetype: *"Disciplined Swing Hedger"*). | *"While you are alive, GhostProtocol learns from your real trading behavior. You trade perps, spot, or futures on our TradingView terminal—every trade automatically pings Proof-of-Life on NEAR and trains your Living Behavioral Twin."* |
+| **0:50 – 1:30** | **The Vault & The Disappearance** | Switch to **"Sovereign Vault & Keys"**. Encrypt a legacy note and recovery seed with client-side **AES-256-GCM**. Watch Share A lock onchain and Share B generate for the heir. Now let the 15s timer run down. At 5s, observe the Telegram warning alert trigger. Let it hit `00:00`. | *"You lock your cold-storage keys in our client-side AES-GCM vault, split into two mathematical shares. Now imagine you go dark. The contract enters an emergency grace period, then timer hits zero."* |
+| **1:30 – 2:20** | **The Ghost Awakens (AI Takeover)** | Status flips to **GHOST AGENT AWAKE**. Switch to **"Ghost Agent Combat Feed"**. Show the terminal streaming live OpenRouter (`inclusionai/ling-3.0-flash`) reasoning: it unwinds the active positions you just opened, checks RSI against your recorded Trader DNA tenets, and fires cross-chain **NEAR Intents**. | *"Proof-of-absence is verified on NEAR. The Ghost Agent wakes up, loads the Trader DNA trained from your live trades, prevents flash-crash dumps, and sweeps your positions into USDC via the NEAR Intent Solver Bus."* |
+| **2:20 – 3:00** | **The Legacy Delivery** | Switch to **"Beneficiary Recovery Portal"**. The smart contract has unlocked **Share A**. Paste the heir's **Share B**. Click **"Decrypt Sovereign Legacy Document"**. The note, seed, and estate payout are revealed live on screen. | *"Share A is released, consolidated USDC is streamed to the heir, and the beneficiary decrypts the estate in seconds. Self-sovereign wealth passed on seamlessly."* |
 
 ---
 
