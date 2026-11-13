@@ -64,10 +64,10 @@ GhostProtocol Sovereign Executor:
 ```mermaid
 flowchart TD
     subgraph ClientVault ["1. Client-Side WebCrypto (Zero-Knowledge Invariant)"]
-        Plaintext["Sensitive Directive / Seed Phrase (P)"]
-        CSPRNG["CSPRNG Generator<br/>K in {0,1}^256, IV in {0,1}^96"]
-        AES["AES-256-GCM Authenticated Encryption<br/>C = AES_GCM(K, IV, P)"]
-        Split["2-of-2 Additive Secret Sharing<br/>S_B <-$ {0,1}^256, S_A = K XOR S_B"]
+        Plaintext["Sensitive Directive or Seed Phrase (P)"]
+        CSPRNG["CSPRNG Generator<br/>256-bit Key K and 96-bit IV"]
+        AES["AES-256-GCM Authenticated Encryption<br/>Ciphertext C = Encrypt(K, IV, P)"]
+        Split["2-of-2 Additive Secret Sharing<br/>Random Share B and Share A = K XOR Share B"]
         
         Plaintext --> AES
         CSPRNG --> AES
@@ -75,32 +75,32 @@ flowchart TD
     end
 
     subgraph OnChain ["2. NEAR Smart Contract State Machine (contracts/src/lib.rs)"]
-        Split -->|Share A Hex Deposit| ContractState[("GhostProtocolContract State<br/>- owner, agent, beneficiary<br/>- last_heartbeat_ms<br/>- timeout_period_ms<br/>- encrypted_key_share: S_A<br/>- trader_dna Matrix")]
+        Split -->|Share A Hex Deposit| ContractState[("GhostProtocol Contract State<br/>Owner, Agent, Beneficiary<br/>Timeout and Key Share A<br/>Trader DNA Matrix")]
         
-        HeartbeatPing["ping_heartbeat() (Owner/Agent)"] -->|Resets Timer| ContractState
+        HeartbeatPing["ping_heartbeat() by Owner or Agent"] -->|Resets Timer| ContractState
         
-        LockoutCheck{"Proof of Absence Gate<br/>now > last_heartbeat + timeout?"}
+        LockoutCheck{"Proof of Absence Gate<br/>now past heartbeat timeout?"}
         ContractState --> LockoutCheck
         
-        LockoutCheck -- "FALSE (Owner Alive)" --> Locked["Strict Access Lockout<br/>- get_beneficiary_key_share() = None<br/>- Chain Signatures LOCKED<br/>- Treasury Transfer LOCKED"]
-        LockoutCheck -- "TRUE (Proof of Absence)" --> GhostAwake["State: GhostAwake / Executed<br/>Key Share S_A UNLOCKED"]
+        LockoutCheck -->|"FALSE: Owner Alive"| Locked["Strict Access Lockout<br/>Key Share Hidden<br/>Chain Signatures LOCKED<br/>Treasury Transfer LOCKED"]
+        LockoutCheck -->|"TRUE: Proof of Absence"| GhostAwake["State: GhostAwake or Executed<br/>Key Share A UNLOCKED"]
     end
 
     subgraph PostHumanExec ["3. Post-Human Sovereign Execution"]
-        GhostAwake -->|Authorized Function Call| MPC["NEAR Chain Signatures (v1.signer-prod.testnet)<br/>250 TGas + 1 yoctoNEAR<br/>payload: [u8; 32] (Foreign Tx Digest)"]
-        GhostAwake -->|Declarative NEP-413 token_diff| SolverBus["NEAR Intents Solver Bus<br/>(Wintermute / Flow Traders)"]
+        GhostAwake -->|Authorized Function Call| MPC["NEAR Chain Signatures<br/>250 TGas and 1 yoctoNEAR<br/>Foreign Tx Digest Payload"]
+        GhostAwake -->|Declarative NEP-413 token_diff| SolverBus["NEAR Intents Solver Bus<br/>Wintermute / Flow Traders"]
         
-        MPC -->|Threshold ECDSA Signature| ExtChains["Unwind Perps & LPs<br/>(Arbitrum, Solana, Hyperliquid)"]
+        MPC -->|Threshold ECDSA Signature| ExtChains["Unwind Perps and LPs<br/>Arbitrum, Solana, Hyperliquid"]
         ExtChains -->|Cross-Chain Assets| SolverBus
         SolverBus -->|Atomic Single-Tx Settle| USDC["Unified NEP-141 USDC Payout"]
     end
 
     subgraph Recovery ["4. Heir Sovereign Recombination"]
-        GhostAwake -->|Contract Releases S_A| BeneficiaryPortal["Beneficiary Client Browser"]
-        Split -->|Share B (Offline / Paper Handoff)| BeneficiaryPortal
+        GhostAwake -->|Contract Releases Share A| BeneficiaryPortal["Beneficiary Client Browser"]
+        Split -->|Share B: Offline or Paper Handoff| BeneficiaryPortal
         
-        BeneficiaryPortal --> Recombine["Browser WebCrypto Engine<br/>K = S_A XOR S_B<br/>P = AES_GCM_DEC(K, IV, C)"]
-        Recombine --> RestoredDirective["Decrypted Directive & Cold Storage Keys"]
+        BeneficiaryPortal --> Recombine["Browser WebCrypto Engine<br/>Key K = Share A XOR Share B<br/>Directives = Decrypt(K, IV, Ciphertext)"]
+        Recombine --> RestoredDirective["Decrypted Directive and Cold Storage Keys"]
         USDC --> HeirWallet["Beneficiary Receives Liquid Inheritance"]
     end
 ```
@@ -190,13 +190,13 @@ sequenceDiagram
     Contract->>Agent: Awaken Ghost Agent & Release Policy
     Agent->>Agent: Ingest Living Trader DNA Matrix
     Agent->>Feed: Poll Live RSI, Funding Rates & Depth
-    alt Market Flash Crash (RSI < panic_dump_threshold_rsi)
+    alt Market Flash Crash (RSI under panic threshold)
         Agent->>Agent: REJECT Market Dump (Preserve Tenet 1)
         Agent->>MPC: Issue Trailing Stop / Limit Orders on Rebound
         MPC->>Perp: NEAR MPC Signs Perp Unwind (v1.signer)
     else Orderbook Stable
         Agent->>IntentBus: Broadcast Volatility-Adaptive TWAP Intent
-        IntentBus->>IntentBus: Multi-Chain Solvers Compete (<0.25% Slippage)
+        IntentBus->>IntentBus: Multi-Chain Solvers Compete (Low Slippage)
         IntentBus->>Heir: Stream Settled USDC
     end
 ```
