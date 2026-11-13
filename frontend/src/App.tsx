@@ -8,6 +8,7 @@ import { BeneficiaryClaim } from './components/BeneficiaryClaim';
 import { TradingTerminal, Position } from './components/TradingTerminal';
 import { AgentThoughtsWindow } from './components/AgentThoughtsWindow';
 import { CrossChainRadar } from './components/CrossChainRadar';
+import { API_BASE_URL, getWsUrl } from './config';
 
 const initialPositions: Position[] = [
   {
@@ -158,7 +159,7 @@ export function App() {
 
   // Immediate REST Status Synchronization on Mount
   useEffect(() => {
-    fetch('http://localhost:8000/api/status')
+    fetch('${API_BASE_URL}/api/status')
       .then(res => res.json())
       .then(data => {
         applyServerState(data);
@@ -181,7 +182,7 @@ export function App() {
     // unilaterally assuming GhostAwake or arbitrarily revealing keys.
     const verifyServerStateOnExpiry = async () => {
       try {
-        const res = await fetch('http://localhost:8000/api/status');
+        const res = await fetch('${API_BASE_URL}/api/status');
         if (res.ok && isMounted) {
           const data = await res.json();
           applyServerState(data);
@@ -213,7 +214,7 @@ export function App() {
       if (!isMounted) return;
 
       try {
-        ws = new WebSocket('ws://localhost:8000/ws');
+        ws = new WebSocket(getWsUrl());
 
         ws.onopen = () => {
           if (!isMounted) {
@@ -224,7 +225,7 @@ export function App() {
           backoffMs = 1000;
 
           // Immediate state sync upon connection
-          fetch('http://localhost:8000/api/status')
+          fetch('${API_BASE_URL}/api/status')
             .then(res => res.json())
             .then(data => {
               if (isMounted) applyServerState(data);
@@ -263,7 +264,7 @@ export function App() {
       reconnectTimeout = setTimeout(() => {
         if (!isMounted) return;
         // In-between reconnect polling
-        fetch('http://localhost:8000/api/status')
+        fetch('${API_BASE_URL}/api/status')
           .then(res => res.json())
           .then(data => {
             if (isMounted) applyServerState(data);
@@ -296,7 +297,7 @@ export function App() {
     setIsPinging(true);
     let resetTimeout = timeoutPeriodMs;
     try {
-      const resp = await fetch('http://localhost:8000/api/heartbeat', { method: 'POST' });
+      const resp = await fetch('${API_BASE_URL}/api/heartbeat', { method: 'POST' });
       if (resp.ok) {
         const body = await resp.json();
         if (body.error) {
@@ -326,7 +327,7 @@ export function App() {
   const handleResetDemo = async () => {
     let resetTimeout = timeoutPeriodMs;
     try {
-      const resp = await fetch('http://localhost:8000/api/reset_demo', { method: 'POST' });
+      const resp = await fetch('${API_BASE_URL}/api/reset_demo', { method: 'POST' });
       if (resp.ok) {
         const body = await resp.json();
         if (body.timeout_period_ms) {
@@ -349,7 +350,7 @@ export function App() {
   const handleSimulateDemise = async () => {
     if (status === 'Executed' || status === 'GhostAwake') return;
     try {
-      await fetch('http://localhost:8000/api/simulate_demise', { method: 'POST' });
+      await fetch('${API_BASE_URL}/api/simulate_demise', { method: 'POST' });
     } catch (e) {}
     setTimeRemainingMs(0);
     setStatus('GhostAwake');
@@ -364,7 +365,7 @@ export function App() {
     if (status === 'Executed' || status === 'GhostAwake') return;
 
     try {
-      const resp = await fetch('http://localhost:8000/api/trade', {
+      const resp = await fetch('${API_BASE_URL}/api/trade', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(tradePayload)
@@ -447,7 +448,7 @@ export function App() {
     setStatus('Alive');
 
     try {
-      const res = await fetch('http://localhost:8000/api/close_position', {
+      const res = await fetch('${API_BASE_URL}/api/close_position', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ position_id: posId, exit_price: exitPrice })
@@ -469,7 +470,7 @@ export function App() {
 
   const handleSaveDNA = async (dnaPayload: any) => {
     try {
-      await fetch('http://localhost:8000/api/update_dna', {
+      await fetch('${API_BASE_URL}/api/update_dna', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(dnaPayload)
@@ -485,7 +486,7 @@ export function App() {
   const handleVaultSealed = async (shareA: string, ciphertextHash: string) => {
     setKeyShareA(shareA);
     try {
-      await fetch('http://localhost:8000/api/vault/seal', {
+      await fetch('${API_BASE_URL}/api/vault/seal', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

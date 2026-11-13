@@ -5,6 +5,7 @@ import {
   formatNearAmount, 
   baseEncode 
 } from 'near-api-js';
+import { API_BASE_URL } from '../config';
 
 export const TESTNET_CONFIG = {
   networkId: 'testnet',
@@ -189,7 +190,7 @@ export async function requestTestnetFaucet(accountId: string): Promise<{
 
   // 1. Try via backend relay (passes public key to NEAR testnet helper)
   try {
-    const res = await fetch('http://localhost:8000/api/testnet/faucet', {
+    const res = await fetch(`${API_BASE_URL}/api/testnet/faucet`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
