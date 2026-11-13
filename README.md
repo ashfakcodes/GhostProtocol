@@ -37,7 +37,7 @@ GhostProtocol Sovereign Executor:
 1. **The $0 Liquidation Cascade (The DeFi Dilemma):**  
    For a position with leverage $L$, maintenance margin requirement $MMR$, and entry price $P_0$, the price distance to liquidation $\Delta P_{liq}$ is:
    $$\Delta P_{liq} = P_0 \cdot \left(\frac{1}{L} - MMR\right)$$
-   For a modest $5\times$ long on NEAR or ETH ($L = 5, MMR = 5\%$), a drop of just $15\%$ triggers immediate liquidation. In crypto markets where 1-hour annualized volatility routinely spikes above $\sigma_{1h} > 80\%$, unattended leveraged positions face liquidation within **45 to 180 minutes**. A dumb 30-day timer will awaken to an empty account.
+   For a modest 5x long on NEAR or ETH ($L = 5$, $\text{MMR} = 5\%$), a drop of just 15% triggers immediate liquidation. In crypto markets where 1-hour annualized volatility routinely spikes above $\sigma_{1h} > 80\%$, unattended leveraged positions face liquidation within **45 to 180 minutes**. A dumb 30-day timer will awaken to an empty account.
 2. **The Predatory MEV & Flash-Dump Trap:**  
    Naive smart contracts that execute atomic `swapExactTokensForTokens` dump illiquid assets directly into thin orderbooks during market stress. Front-running bots and MEV searchers sandwich these trades, extracting up to **40% of the estate's value**.
 3. **The Grieving Heir UX Nightmare (The 24-Word Disaster):**  
@@ -165,11 +165,11 @@ The owner's trading behavior is continuously extracted and updated directly from
 | Dimension | Telemetry Metrics Tracked | Combat Reasoner Post-Mortem Action |
 | :--- | :--- | :--- |
 | **1. Trading Patterns** | Order ratio (Limit vs Market), Perp/Spot split, Hold duration | Enforces limit/TWAP tranche execution over aggressive market orders. |
-| **2. Risk Tolerance** | Drawdown tolerance ($35\%$), Volatility affinity ($0.65$), Patience ($0.88$) | Prevents capitulation during mid-trend drawdowns. |
-| **3. Leverage Preferences** | Average leverage ($2.5\times$), Historical peak ($3.0\times$), Discipline Grade (A) | Caps synthetic hedges and cross-margin exposure to prevent cascade. |
-| **4. Stop-Loss Habits** | Stop adherence ($92\%$), Average cushion ($3.2\%$), Hard-stop flag | Sets calibrated protective stops on inherited perps instantly upon wake-up. |
-| **5. Profit-Taking Style** | Realized R:R ($2.15\times$), Take-Profit adherence ($85\%$), Harvest style | Scales out via TWAP rather than dumping profitable runners prematurely. |
-| **6. Decision Tendencies** | Dip-buyer score ($0.82$), Panic resilience ($0.94$), Funding sensitivity | Identifies oversold bottoms; refuses to sell during RSI wicks below threshold. |
+| **2. Risk Tolerance** | Drawdown tolerance (35%), Volatility affinity (0.65), Patience (0.88) | Prevents capitulation during mid-trend drawdowns. |
+| **3. Leverage Preferences** | Average leverage (2.5x), Historical peak (3.0x), Discipline Grade (A) | Caps synthetic hedges and cross-margin exposure to prevent cascade. |
+| **4. Stop-Loss Habits** | Stop adherence (92%), Average cushion (3.2%), Hard-stop flag | Sets calibrated protective stops on inherited perps instantly upon wake-up. |
+| **5. Profit-Taking Style** | Realized R:R (2.15x), Take-Profit adherence (85%), Harvest style | Scales out via TWAP rather than dumping profitable runners prematurely. |
+| **6. Decision Tendencies** | Dip-buyer score (0.82), Panic resilience (0.94), Funding sensitivity | Identifies oversold bottoms; refuses to sell during RSI wicks below threshold. |
 
 ---
 
@@ -202,8 +202,8 @@ sequenceDiagram
 ```
 
 ### Parameter Action Mechanics:
-1. **`panic_dump_threshold_rsi: 28.0`**: If market shocks drive RSI $< 28.0$, the agent explicitly overrides sell directives. It queues dynamic trailing stops to catch the relief bounce instead of capitulating at the bottom of a wick.
-2. **`max_slippage_tolerance_pct: 0.25%`**: Embedded into every NEAR Intent envelope. Bids extracting $> 25\text{ bps}$ of value are cryptographically rejected by the settlement contract.
+1. **`panic_dump_threshold_rsi: 28.0`**: If market shocks drive RSI below 28.0, the agent explicitly overrides sell directives. It queues dynamic trailing stops to catch the relief bounce instead of capitulating at the bottom of a wick.
+2. **`max_slippage_tolerance_pct: 0.25%`**: Embedded into every NEAR Intent envelope. Bids extracting > 25 bps of value are cryptographically rejected by the settlement contract.
 3. **`unwind_strategy: TWAP_VOLATILITY_ADAPTIVE`**: Positions are partitioned into $N$ tranches dynamically weighted by 1-hour realized volatility ($\sigma_{1h}$) and order book depth ($D(p)$):
    $$T_k = \frac{\text{Total Position}}{N} \cdot \left(1 - \frac{\sigma_{1h}}{\sigma_{\text{baseline}}}\right)$$
 
@@ -215,14 +215,17 @@ GhostProtocol enforces a **Strict Zero-Knowledge Invariant**: plaintext directiv
 
 ### Information-Theoretic Perfect Secrecy Proof
 Let $\mathcal{K} = \{0, 1\}^{256}$ be the symmetric key space.
-1. Client generates master key $K \xleftarrow{\$} \mathcal{K}$ and initialization vector $IV \xleftarrow{\$} \{0, 1\}^{96}$ via WebCrypto CSPRNG.
-2. The payload is encrypted with AES-256-GCM: $C = \text{AES-GCM-ENC}_K(IV, P) = (C_{\text{cipher}}, T)$.
+
+1. Client generates master key $K \leftarrow_{\text{R}} \mathcal{K}$ and initialization vector $IV \leftarrow_{\text{R}} \{0, 1\}^{96}$ via WebCrypto CSPRNG.
+2. The payload is encrypted with AES-256-GCM:
+   $$C = \text{AES-GCM-ENC}(K, IV, P) = (C_{\text{cipher}}, T)$$
 3. Key $K$ is split via 2-of-2 additive secret sharing:
-   $$S_B \xleftarrow{\$} \{0, 1\}^{256}, \quad S_A = K \oplus S_B$$
+   $$S_B \leftarrow_{\text{R}} \{0, 1\}^{256}, \quad S_A = K \oplus S_B$$
 4. Because $S_B$ is chosen uniformly at random:
    $$P(S_A = s_A \mid K = k) = P(S_B = k \oplus s_A) = \frac{1}{2^{256}}$$
    $$H(K \mid S_A) = H(K) = 256 \text{ bits}, \quad I(K; S_A) = 0$$
-   **Result:** Publicly storing Share A on the NEAR blockchain leaks exactly **zero bits of entropy** regarding the master key $K$. Without Share B (held by the heir), recovering $K$ requires brute-forcing $2^{256}$ operations.
+
+**Result:** Publicly storing Share A on the NEAR blockchain leaks exactly **zero bits of entropy** regarding the master key $K$. Without Share B (held by the heir), recovering $K$ requires brute-forcing $2^{256}$ operations.
 
 ---
 
@@ -242,10 +245,10 @@ Implemented in [`contracts/src/lib.rs`](contracts/src/lib.rs) with 10 passing un
        }
    }
    ```
-2. **Multi-Party Trigger Permissioning:** `caller \in \{\text{agent}, \text{owner}, \text{beneficiary}\}` prevents permanent freeze if the AI daemon goes offline.
+2. **Multi-Party Trigger Permissioning:** `caller ∈ {agent, owner, beneficiary}` prevents permanent freeze if the AI daemon goes offline.
 3. **Storage Staking Cushion:** Dynamically calculates exact storage costs:
-   $$\text{StorageReserve} = (\texttt{env::storage\_usage()} \times \texttt{env::storage\_byte\_cost()}) + 20\text{ mNEAR}$$
-   preventing contract eviction or runtime out-of-storage panics during payouts.
+   $$\text{StorageReserve} = (\text{StorageUsage} \times \text{StorageByteCost}) + 20\text{ mNEAR}$$
+   where `StorageUsage` and `StorageByteCost` are dynamically sampled from `env::storage_usage()` and `env::storage_byte_cost()`, preventing contract eviction or runtime out-of-storage panics during payouts.
 4. **Asynchronous Callback Rollback:** If cross-contract token transfers fail, the contract automatically reverts status from `Executed` to `GhostAwake` via `on_transfer_complete` and `on_nep141_transfer_complete`.
 
 ---
@@ -254,9 +257,9 @@ Implemented in [`contracts/src/lib.rs`](contracts/src/lib.rs) with 10 passing un
 
 ### 1. NEAR Chain Signatures (`v1.signer-prod.testnet`)
 Enables the NEAR contract to sign transactions on Bitcoin, Ethereum, Arbitrum, Solana, and Hyperliquid using threshold ECDSA (secp256k1):
-$$e = \mathcal{H}_{\text{scalar}}(\texttt{predecessor\_account\_id} \,\|\, \texttt{path} \,\|\, \epsilon)$$
+$$e = \mathcal{H}_{\text{scalar}}(\text{predecessor} \,\|\, \text{path} \,\|\, \epsilon)$$
 $$PK_{\text{foreign}} = PK_{\text{master}} + e \cdot G$$
-The contract calls the decentralized MPC network with 250 TGas and 1 yoctoNEAR:
+where $\text{predecessor}$ corresponds to `predecessor_account_id`. The contract calls the decentralized MPC network with 250 TGas and 1 yoctoNEAR:
 ```rust
 Promise::new(self.mpc_signer.clone()).function_call(
     "sign".to_string(),
