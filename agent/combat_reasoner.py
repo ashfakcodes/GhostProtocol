@@ -1,5 +1,6 @@
 import os
 import json
+import asyncio
 import aiohttp
 from typing import Dict, Any
 
@@ -28,15 +29,15 @@ class CombatReasoner:
         openrouter_model: str = None,
         gemini_api_key: str = None
     ):
-        self.openrouter_api_key = openrouter_api_key or OPENROUTER_API_KEY
+        self.openrouter_api_key = openrouter_api_key if openrouter_api_key is not None else OPENROUTER_API_KEY
         self.openrouter_base_url = OPENROUTER_BASE_URL
         self.openrouter_model = openrouter_model or OPENROUTER_MODEL
 
-        self.gemini_api_key = gemini_api_key or GEMINI_API_KEY
+        self.gemini_api_key = gemini_api_key if gemini_api_key is not None else GEMINI_API_KEY
         self.gemini_model = GEMINI_MODEL
         self.gemini_client = None
 
-        if self.gemini_api_key and not self.openrouter_api_key:
+        if self.gemini_api_key:
             try:
                 from google import genai
                 self.gemini_client = genai.Client(api_key=self.gemini_api_key)
@@ -115,7 +116,8 @@ class CombatReasoner:
                         {"role": "system", "content": system_instruction},
                         {"role": "user", "content": user_content}
                     ],
-                    "temperature": 0.2
+                    "temperature": 0.2,
+                    "response_format": {"type": "json_object"}
                 }
 
                 async with aiohttp.ClientSession() as session:
@@ -137,12 +139,13 @@ class CombatReasoner:
             except Exception as e:
                 print(f"[COMBAT_REASONER] OpenRouter call failed: {e}. Checking secondary fallback...")
 
-        # 2. Secondary Provider: Gemini API
+        # 2. Secondary Provider: Gemini API (wrapped with asyncio.to_thread to keep FastAPI loop responsive)
         if self.gemini_client:
             try:
                 print(f"[COMBAT_REASONER] Querying Gemini model: {self.gemini_model}...")
                 full_prompt = f"{system_instruction}\n\n{user_content}"
-                response = self.gemini_client.models.generate_content(
+                response = await asyncio.to_thread(
+                    self.gemini_client.models.generate_content,
                     model=self.gemini_model,
                     contents=full_prompt,
                 )
@@ -157,14 +160,17 @@ class CombatReasoner:
 
     def _extract_json(self, raw_text: str) -> Dict[str, Any]:
         try:
-            if "```json" in raw_text:
-                cleaned = raw_text.split("```json")[1].split("```")[0].strip()
-                return json.loads(cleaned)
-            elif "```" in raw_text:
-                cleaned = raw_text.split("```")[1].split("```")[0].strip()
-                return json.loads(cleaned)
+            text = raw_text.strip()
+            if "```json" in text:
+                text = text.split("```json")[1].split("```")[0].strip()
+            elif "```" in text:
+                text = text.split("```")[1].split("```")[0].strip()
             else:
-                return json.loads(raw_text.strip())
+                start = text.find("{")
+                end = text.rfind("}")
+                if start != -1 and end != -1:
+                    text = text[start:end+1]
+            return json.loads(text)
         except Exception:
             return None
 

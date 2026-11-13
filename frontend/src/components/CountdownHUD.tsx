@@ -8,6 +8,7 @@ interface CountdownHUDProps {
   treasuryNear: number;
   onPingHeartbeat: () => void;
   onResetDemo: () => void;
+  onSimulateDemise?: () => void;
   isPinging: boolean;
 }
 
@@ -18,6 +19,7 @@ export const CountdownHUD: React.FC<CountdownHUDProps> = ({
   treasuryNear,
   onPingHeartbeat,
   onResetDemo,
+  onSimulateDemise,
   isPinging
 }) => {
   const secondsLeft = Math.max(0, Math.ceil(timeRemainingMs / 1000));
@@ -79,7 +81,9 @@ export const CountdownHUD: React.FC<CountdownHUDProps> = ({
                 cy="48"
                 r="40"
                 className={`stroke-current transition-all duration-300 ${
-                  status === 'GhostAwake'
+                  status === 'Executed'
+                    ? 'text-sky-500'
+                    : status === 'GhostAwake'
                     ? 'text-red-500'
                     : status === 'Warning'
                     ? 'text-amber-500'
@@ -125,18 +129,42 @@ export const CountdownHUD: React.FC<CountdownHUDProps> = ({
           </div>
 
           <div className="flex items-center gap-2 w-full sm:w-auto">
-            <button
-              onClick={onPingHeartbeat}
-              disabled={isPinging || status === 'Executed'}
-              className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-red-600 hover:bg-red-500 active:scale-95 disabled:opacity-40 disabled:pointer-events-none text-white font-mono text-xs font-medium px-4 py-2.5 rounded-lg transition-colors cursor-pointer"
-            >
-              <Activity className={`w-3.5 h-3.5 ${isPinging ? 'animate-spin' : ''}`} />
-              <span>{isPinging ? 'Pinging NEAR...' : 'Ping Heartbeat'}</span>
-            </button>
+            {status === 'Executed' ? (
+              <button
+                onClick={onResetDemo}
+                className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-black font-mono text-xs font-bold px-4 py-2.5 rounded-lg transition-all shadow-lg shadow-emerald-500/20 cursor-pointer animate-pulse"
+                title="Re-arm protocol and revive demo scenario"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                <span>Re-arm Protocol (Reset Demo)</span>
+              </button>
+            ) : (
+              <>
+                <button
+                  onClick={onPingHeartbeat}
+                  disabled={isPinging || status === 'GhostAwake'}
+                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-red-600 hover:bg-red-500 active:scale-95 disabled:opacity-40 disabled:pointer-events-none text-white font-mono text-xs font-medium px-4 py-2.5 rounded-lg transition-colors cursor-pointer"
+                >
+                  <Activity className={`w-3.5 h-3.5 ${isPinging ? 'animate-spin' : ''}`} />
+                  <span>{isPinging ? 'Pinging NEAR...' : 'Ping Heartbeat'}</span>
+                </button>
+
+                {onSimulateDemise && (
+                  <button
+                    onClick={onSimulateDemise}
+                    disabled={status === 'GhostAwake'}
+                    className="flex items-center gap-1.5 px-3 py-2.5 rounded-lg bg-obsidian-800 hover:bg-obsidian-700 active:scale-95 text-slate-300 hover:text-white border border-obsidian-700 font-mono text-xs font-medium transition-colors cursor-pointer disabled:opacity-40 disabled:pointer-events-none"
+                    title="Simulate sudden absence to test autonomous takeover & cross-chain radar immediately"
+                  >
+                    <span>Simulate Absence</span>
+                  </button>
+                )}
+              </>
+            )}
 
             <button
               onClick={onResetDemo}
-              title="Reset Demo to Alive (15s)"
+              title={`Reset Demo to Alive (${Math.round(timeoutPeriodMs / 1000)}s)`}
               className="p-2.5 rounded-lg bg-obsidian-800 hover:bg-obsidian-700 text-slate-400 hover:text-white border border-obsidian-700 transition-colors"
             >
               <RefreshCw className="w-3.5 h-3.5" />

@@ -40,7 +40,15 @@ export const GhostTerminal: React.FC<GhostTerminalProps> = ({ logs, status }) =>
         </div>
 
         <div className="flex items-center gap-3">
-          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-obsidian-800 text-slate-400 uppercase">
+          <span className={`text-[10px] font-mono px-2 py-0.5 rounded uppercase border ${
+            status === 'Executed'
+              ? 'bg-sky-500/10 text-sky-400 border-sky-500/30'
+              : status === 'GhostAwake'
+              ? 'bg-red-500/10 text-red-400 border-red-500/30'
+              : status === 'Warning'
+              ? 'bg-amber-500/10 text-amber-400 border-amber-500/30'
+              : 'bg-obsidian-800 border-obsidian-700 text-slate-400'
+          }`}>
             {status}
           </span>
           <button

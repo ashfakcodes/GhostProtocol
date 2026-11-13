@@ -1,11 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import { Shield, Cpu, Terminal, KeyRound, ExternalLink, RefreshCw, BarChart2 } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Shield, Cpu, Terminal, KeyRound, ExternalLink, RefreshCw, BarChart2, ArrowRight } from 'lucide-react';
 import { CountdownHUD } from './components/CountdownHUD';
 import { TraderDNASetup } from './components/TraderDNASetup';
 import { VaultEncryptor } from './components/VaultEncryptor';
 import { GhostTerminal } from './components/GhostTerminal';
 import { BeneficiaryClaim } from './components/BeneficiaryClaim';
 import { TradingTerminal, Position } from './components/TradingTerminal';
+import { AgentThoughtsWindow } from './components/AgentThoughtsWindow';
+import { CrossChainRadar } from './components/CrossChainRadar';
 
 const initialPositions: Position[] = [
   {
@@ -14,14 +16,14 @@ const initialPositions: Position[] = [
     mode: "PERP",
     side: "LONG",
     size: 500.0,
-    entry_price: 5.15,
-    mark_price: 5.24,
+    entry_price: 4.05,
+    mark_price: 4.08,
     leverage: 3.0,
-    margin: 858.33,
-    pnl: 45.00,
-    pnl_pct: 5.24,
-    stop_loss: 4.98,
-    take_profit: 5.80,
+    margin: 675.00,
+    pnl: 15.00,
+    pnl_pct: 2.22,
+    stop_loss: 3.50,
+    take_profit: 5.20,
     opened_at: Math.floor(Date.now() / 1000) - 3600
   },
   {
@@ -30,14 +32,14 @@ const initialPositions: Position[] = [
     mode: "PERP",
     side: "LONG",
     size: 1.5,
-    entry_price: 3120.00,
-    mark_price: 3154.50,
+    entry_price: 2250.00,
+    mark_price: 2280.00,
     leverage: 2.0,
-    margin: 2340.00,
-    pnl: 51.75,
-    pnl_pct: 2.21,
-    stop_loss: 3020.00,
-    take_profit: 3350.00,
+    margin: 1687.50,
+    pnl: 45.00,
+    pnl_pct: 2.67,
+    stop_loss: 1950.00,
+    take_profit: 2800.00,
     opened_at: Math.floor(Date.now() / 1000) - 7200
   }
 ];
@@ -45,8 +47,9 @@ const initialPositions: Position[] = [
 export function App() {
   const [activeTab, setActiveTab] = useState<'trade' | 'vault' | 'agent' | 'claim'>('trade');
   const [status, setStatus] = useState<string>('Alive');
-  const [timeRemainingMs, setTimeRemainingMs] = useState<number>(15000);
-  const [timeoutPeriodMs, setTimeoutPeriodMs] = useState<number>(15000);
+  const [timeRemainingMs, setTimeRemainingMs] = useState<number>(50000);
+  const [timeoutPeriodMs, setTimeoutPeriodMs] = useState<number>(50000);
+  const [warningThresholdMs, setWarningThresholdMs] = useState<number>(15000);
   const [treasuryNear, setTreasuryNear] = useState<number>(12.5);
   const [keyShareA, setKeyShareA] = useState<string | null>(null);
   const [activePositions, setActivePositions] = useState<Position[]>(initialPositions);
@@ -104,99 +107,261 @@ export function App() {
 
   const [logs, setLogs] = useState<string[]>([
     "[10:30:00] [WATCHMAN] GhostProtocol Watchman initialized on NEAR Testnet.",
-    "[10:30:01] [STATE] Owner proof-of-life status: ALIVE. Countdown: 15s.",
+    "[10:30:01] [STATE] Owner proof-of-life status: ALIVE.",
     "[10:30:02] [DNA_MIMIC] Loaded Owner Trader DNA: Patience-Disciplined Swing Hedger.",
     "[10:30:02] [AI_ENGINE] Connected to OpenRouter :: Model: inclusionai/ling-3.0-flash.",
     "[10:30:03] [TELEGRAM] Telegram heartbeat userbot armed. Ready for pings."
   ]);
   const [isPinging, setIsPinging] = useState(false);
 
-  // WebSocket / Polling bridge to Python Backend
-  useEffect(() => {
-    let ws: WebSocket | null = null;
-    let fallbackInterval: any = null;
+  // References for dynamic timer intervals
+  const timeoutRef = useRef(timeoutPeriodMs);
+  timeoutRef.current = timeoutPeriodMs;
+  const warningRef = useRef(warningThresholdMs);
+  warningRef.current = warningThresholdMs;
 
-    try {
-      ws = new WebSocket('ws://localhost:8000/ws');
-      ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          setStatus(data.status);
-          setTimeRemainingMs(data.time_remaining_ms);
-          setTimeoutPeriodMs(data.timeout_period_ms);
-          setTreasuryNear(data.treasury_near);
-          if (data.key_share_a) setKeyShareA(data.key_share_a);
-          if (data.active_positions) setActivePositions(data.active_positions);
-          if (data.trade_history) setTradeHistory(data.trade_history);
-          if (data.trader_dna) setTraderDna(data.trader_dna);
-          if (data.logs && data.logs.length > 0) {
-            setLogs(data.logs);
-          }
-        } catch (e) {}
-      };
-      ws.onerror = () => {
-        startFallbackTimer();
-      };
-    } catch (e) {
-      startFallbackTimer();
+  // Real-time synchronization sequence & timestamp tracking
+  const lastSeqRef = useRef<number>(-1);
+  const lastTimestampRef = useRef<number>(0);
+
+  // Authoritative server state applier with out-of-order guard
+  const applyServerState = (data: any) => {
+    if (!data) return;
+
+    // Support server sequence numbers (seq) to prevent out-of-order jitter
+    if (typeof data.seq === 'number') {
+      if (data.seq < lastSeqRef.current) {
+        return; // Drop stale out-of-order sequence packet
+      }
+      lastSeqRef.current = data.seq;
     }
 
-    function startFallbackTimer() {
-      if (fallbackInterval) return;
-      fallbackInterval = setInterval(() => {
+    // Support server timestamp comparison
+    if (typeof data.timestamp === 'number') {
+      if (data.timestamp < lastTimestampRef.current) {
+        return; // Drop stale timestamp packet
+      }
+      lastTimestampRef.current = data.timestamp;
+    }
+
+    if (data.status) setStatus(data.status);
+    if (data.time_remaining_ms !== undefined) setTimeRemainingMs(data.time_remaining_ms);
+    if (data.timeout_period_ms) setTimeoutPeriodMs(data.timeout_period_ms);
+    if (data.warning_threshold_ms) setWarningThresholdMs(data.warning_threshold_ms);
+    if (data.treasury_near !== undefined) setTreasuryNear(data.treasury_near);
+    if (data.key_share_a !== undefined) setKeyShareA(data.key_share_a);
+    if (data.active_positions) setActivePositions(data.active_positions);
+    if (data.trade_history) setTradeHistory(data.trade_history);
+    if (data.trader_dna) setTraderDna(data.trader_dna);
+    if (data.logs && data.logs.length > 0) setLogs(data.logs);
+  };
+
+  // Immediate REST Status Synchronization on Mount
+  useEffect(() => {
+    fetch('http://localhost:8000/api/status')
+      .then(res => res.json())
+      .then(data => {
+        applyServerState(data);
+      })
+      .catch(() => {});
+  }, []);
+
+  // WebSocket with Exponential Backoff Auto-Reconnect & Resilient State Sync
+  useEffect(() => {
+    let ws: WebSocket | null = null;
+    let isMounted = true;
+    let reconnectTimeout: any = null;
+    let visualCountdownInterval: any = null;
+    let backoffMs = 1000;
+    const MAX_BACKOFF_MS = 8000;
+    const BACKOFF_MULTIPLIER = 1.5;
+
+    // Eliminate client-side timer race condition:
+    // When local timer reaches expiration, check real server state rather than
+    // unilaterally assuming GhostAwake or arbitrarily revealing keys.
+    const verifyServerStateOnExpiry = async () => {
+      try {
+        const res = await fetch('http://localhost:8000/api/status');
+        if (res.ok && isMounted) {
+          const data = await res.json();
+          applyServerState(data);
+        }
+      } catch (e) {
+        // Disconnected/network error: keep current status, do NOT invent GhostAwake
+      }
+    };
+
+    const startVisualCountdown = () => {
+      if (visualCountdownInterval) return;
+      visualCountdownInterval = setInterval(() => {
         setTimeRemainingMs((prev) => {
           if (prev <= 1000) {
-            setStatus('GhostAwake');
-            setKeyShareA('SHARE_A_SEC_98a7cf28b');
+            // Reached zero: verify with authoritative server state!
+            verifyServerStateOnExpiry();
             return 0;
           }
-          if (prev <= 5000) {
-            setStatus('Warning');
+          const warnLimit = warningRef.current || Math.max(2000, timeoutRef.current / 3);
+          if (prev <= warnLimit) {
+            setStatus((current) => (current === 'Executed' || current === 'GhostAwake' ? current : 'Warning'));
           }
           return prev - 1000;
         });
       }, 1000);
-    }
+    };
+
+    const connectWebSocket = () => {
+      if (!isMounted) return;
+
+      try {
+        ws = new WebSocket('ws://localhost:8000/ws');
+
+        ws.onopen = () => {
+          if (!isMounted) {
+            ws?.close();
+            return;
+          }
+          // Connection established: reset backoff to 1s
+          backoffMs = 1000;
+
+          // Immediate state sync upon connection
+          fetch('http://localhost:8000/api/status')
+            .then(res => res.json())
+            .then(data => {
+              if (isMounted) applyServerState(data);
+            })
+            .catch(() => {});
+        };
+
+        ws.onmessage = (event) => {
+          if (!isMounted) return;
+          try {
+            const data = JSON.parse(event.data);
+            applyServerState(data);
+          } catch (e) {}
+        };
+
+        ws.onerror = () => {
+          // Trigger reconnect via onclose
+        };
+
+        ws.onclose = () => {
+          if (!isMounted) return;
+          scheduleReconnect();
+        };
+      } catch (e) {
+        scheduleReconnect();
+      }
+    };
+
+    const scheduleReconnect = () => {
+      if (!isMounted) return;
+      if (reconnectTimeout) clearTimeout(reconnectTimeout);
+
+      const delay = backoffMs;
+      backoffMs = Math.min(MAX_BACKOFF_MS, Math.round(backoffMs * BACKOFF_MULTIPLIER));
+
+      reconnectTimeout = setTimeout(() => {
+        if (!isMounted) return;
+        // In-between reconnect polling
+        fetch('http://localhost:8000/api/status')
+          .then(res => res.json())
+          .then(data => {
+            if (isMounted) applyServerState(data);
+          })
+          .catch(() => {});
+
+        connectWebSocket();
+      }, delay);
+    };
+
+    startVisualCountdown();
+    connectWebSocket();
 
     return () => {
-      if (ws) ws.close();
-      if (fallbackInterval) clearInterval(fallbackInterval);
+      isMounted = false;
+      if (reconnectTimeout) clearTimeout(reconnectTimeout);
+      if (visualCountdownInterval) clearInterval(visualCountdownInterval);
+      if (ws) {
+        ws.onopen = null;
+        ws.onmessage = null;
+        ws.onerror = null;
+        ws.onclose = null;
+        ws.close();
+      }
     };
   }, []);
 
   const handlePingHeartbeat = async () => {
+    if (status === 'Executed' || status === 'GhostAwake') return;
     setIsPinging(true);
+    let resetTimeout = timeoutPeriodMs;
     try {
-      await fetch('http://localhost:8000/api/heartbeat', { method: 'POST' });
+      const resp = await fetch('http://localhost:8000/api/heartbeat', { method: 'POST' });
+      if (resp.ok) {
+        const body = await resp.json();
+        if (body.error) {
+          setLogs((prev) => [
+            ...prev,
+            `[${new Date().toLocaleTimeString()}] [HEARTBEAT_REJECTED] ${body.error}`
+          ]);
+          setIsPinging(false);
+          return;
+        }
+        if (body.timeout_period_ms) {
+          resetTimeout = body.timeout_period_ms;
+          setTimeoutPeriodMs(body.timeout_period_ms);
+        }
+      }
     } catch (e) {}
-    // Immediate UI update
-    setTimeRemainingMs(15000);
+    // Immediate UI update only on success
+    setTimeRemainingMs(resetTimeout);
     setStatus('Alive');
     setLogs((prev) => [
       ...prev,
-      `[${new Date().toLocaleTimeString()}] [HEARTBEAT] Proof-of-Life verified. Expiration reset to 15s.`
+      `[${new Date().toLocaleTimeString()}] [HEARTBEAT] Proof-of-Life verified. Expiration reset to ${Math.round(resetTimeout / 1000)}s.`
     ]);
     setTimeout(() => setIsPinging(false), 600);
   };
 
   const handleResetDemo = async () => {
+    let resetTimeout = timeoutPeriodMs;
     try {
-      await fetch('http://localhost:8000/api/reset_demo', { method: 'POST' });
+      const resp = await fetch('http://localhost:8000/api/reset_demo', { method: 'POST' });
+      if (resp.ok) {
+        const body = await resp.json();
+        if (body.timeout_period_ms) {
+          resetTimeout = body.timeout_period_ms;
+          setTimeoutPeriodMs(body.timeout_period_ms);
+        }
+      }
     } catch (e) {}
-    setTimeRemainingMs(15000);
+    setTimeRemainingMs(resetTimeout);
     setStatus('Alive');
     setTreasuryNear(12.5);
     setKeyShareA(null);
     setActivePositions(initialPositions);
     setLogs((prev) => [
       ...prev,
-      `[${new Date().toLocaleTimeString()}] [SYSTEM] Demo reset to initial active state with default positions.`
+      `[${new Date().toLocaleTimeString()}] [SYSTEM] Demo reset to initial active state (Interval: ${Math.round(resetTimeout / 1000)}s).`
+    ]);
+  };
+
+  const handleSimulateDemise = async () => {
+    if (status === 'Executed' || status === 'GhostAwake') return;
+    try {
+      await fetch('http://localhost:8000/api/simulate_demise', { method: 'POST' });
+    } catch (e) {}
+    setTimeRemainingMs(0);
+    setStatus('GhostAwake');
+    setLogs((prev) => [
+      ...prev,
+      `[${new Date().toLocaleTimeString()}] [SIMULATION] Owner silence simulated. Proof-of-Absence triggered on NEAR.`,
+      `[${new Date().toLocaleTimeString()}] [GHOST_BRAIN] Awakening Ghost Agent Sovereign Executor...`
     ]);
   };
 
   const handleTradeExecuted = async (tradePayload: any) => {
-    setTimeRemainingMs(15000);
-    setStatus('Alive');
+    if (status === 'Executed' || status === 'GhostAwake') return;
 
     try {
       const resp = await fetch('http://localhost:8000/api/trade', {
@@ -206,6 +371,15 @@ export function App() {
       });
       if (resp.ok) {
         const resData = await resp.json();
+        if (resData.error) {
+          setLogs((prev) => [
+            ...prev,
+            `[${new Date().toLocaleTimeString()}] [TRADE_REJECTED] ${resData.error}`
+          ]);
+          return;
+        }
+        setTimeRemainingMs(timeoutPeriodMs);
+        setStatus('Alive');
         if (resData.position && tradePayload.mode !== 'SPOT') {
           setActivePositions((prev) => [resData.position, ...prev]);
         }
@@ -214,7 +388,8 @@ export function App() {
         }
       }
     } catch (e) {
-      // Optimistic fallback if backend is offline
+      setTimeRemainingMs(timeoutPeriodMs);
+      setStatus('Alive');
       const posId = `pos-${Date.now().toString(36)}`;
       const newPos: Position = {
         id: posId,
@@ -237,15 +412,38 @@ export function App() {
       }
     }
 
+    // Add to local trade history log immediately
+    const newHistoryItem = {
+      id: `tr-${Date.now()}`,
+      symbol: tradePayload.symbol,
+      mode: tradePayload.mode,
+      side: tradePayload.side,
+      order_type: tradePayload.order_type,
+      size: tradePayload.size,
+      price: tradePayload.price,
+      leverage: tradePayload.leverage,
+      has_stop_loss: tradePayload.has_stop_loss,
+      stop_loss_pct: tradePayload.stop_loss_pct,
+      timestamp: Math.floor(Date.now() / 1000),
+      tx_hash: tradePayload.tx_hash,
+      nearblocks_url: tradePayload.nearblocks_url
+    };
+    setTradeHistory((prev) => [newHistoryItem, ...prev]);
+
+    const isSpot = tradePayload.mode === 'SPOT';
+    const tradeSummary = isSpot 
+      ? `Owner executed SPOT ${tradePayload.side} ${tradePayload.size} ${tradePayload.symbol}`
+      : `Owner opened ${tradePayload.mode} ${tradePayload.side === 'BUY' ? 'LONG' : 'SHORT'} ${tradePayload.size} ${tradePayload.symbol} (${tradePayload.leverage}x)`;
+
     setLogs((prev) => [
       ...prev,
       `[${new Date().toLocaleTimeString()}] [ATOMIC_BATCH] Testnet Tx: ${(tradePayload.tx_hash || '8zWpNEAR').substring(0, 16)}... (Action 0: Intent Escrow, Action 1: ping_heartbeat). Proof-of-Life verified on NEAR.`,
-      `[${new Date().toLocaleTimeString()}] [TRADE_TELEMETRY] Owner opened ${tradePayload.mode} ${tradePayload.side} ${tradePayload.size} ${tradePayload.symbol} (${tradePayload.leverage}x). DNA recalibrated.`
+      `[${new Date().toLocaleTimeString()}] [TRADE_TELEMETRY] ${tradeSummary}. DNA recalibrated.`
     ]);
   };
 
   const handleClosePosition = async (posId: string, exitPrice?: number) => {
-    setTimeRemainingMs(15000);
+    setTimeRemainingMs(timeoutPeriodMs);
     setStatus('Alive');
 
     try {
@@ -284,7 +482,20 @@ export function App() {
     ]);
   };
 
-  const handleVaultSealed = (shareA: string, ciphertextHash: string) => {
+  const handleVaultSealed = async (shareA: string, ciphertextHash: string) => {
+    setKeyShareA(shareA);
+    try {
+      await fetch('http://localhost:8000/api/vault/seal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          key_share_a: shareA,
+          ciphertext_hash: ciphertextHash
+        })
+      });
+    } catch (e) {
+      // Offline fallback: keep client-side state
+    }
     setLogs((prev) => [
       ...prev,
       `[${new Date().toLocaleTimeString()}] [VAULT] Sealed with AES-256-GCM. Share A committed. Ciphertext: ${ciphertextHash}...`
@@ -297,10 +508,8 @@ export function App() {
       <header className="border-b border-obsidian-800 bg-obsidian-900/90 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
+            <img src="/favicon.png" alt="GhostProtocol Icon" className="w-6 h-6 object-contain rounded" />
             <span className="font-mono text-sm font-bold tracking-tight text-white uppercase">GHOSTPROTOCOL</span>
-            <span className="text-[10px] font-mono uppercase bg-obsidian-800 text-slate-300 border border-obsidian-700 px-2 py-0.5 rounded font-semibold">
-              NEAR Track 13
-            </span>
             <span className="text-obsidian-700 hidden md:inline">|</span>
             <span className="text-[11px] text-slate-400 font-mono hidden md:inline">
               Post-Human Sovereign Executor
@@ -337,8 +546,31 @@ export function App() {
           treasuryNear={treasuryNear}
           onPingHeartbeat={handlePingHeartbeat}
           onResetDemo={handleResetDemo}
+          onSimulateDemise={handleSimulateDemise}
           isPinging={isPinging}
         />
+
+        {/* Institutional Takeover Banner (Active when Ghost Agent takes over) */}
+        {(status === 'GhostAwake' || status === 'Executed') && activeTab !== 'agent' && activeTab !== 'claim' && (
+          <div className="bg-obsidian-900 border border-red-500/30 rounded-lg p-3 flex flex-wrap items-center justify-between gap-3 font-mono text-xs">
+            <div className="flex items-center gap-2.5">
+              <span className="w-2 h-2 rounded-full bg-red-400"></span>
+              <span className="text-slate-200 font-semibold">
+                [GHOST PROTOCOL TAKEOVER IN PROGRESS]
+              </span>
+              <span className="text-slate-400 hidden sm:inline">
+                NEAR MPC signing external liquidations &amp; routing intents to Solver Bus.
+              </span>
+            </div>
+            <button
+              onClick={() => setActiveTab('agent')}
+              className="px-2.5 py-1 rounded bg-obsidian-800 hover:bg-obsidian-700 border border-obsidian-700 text-slate-200 hover:text-white transition-colors cursor-pointer flex items-center gap-1.5"
+            >
+              <span>View Execution Radar</span>
+              <ArrowRight className="w-3 h-3 text-slate-400" />
+            </button>
+          </div>
+        )}
 
         {/* Tab Navigation */}
         <div className="flex flex-wrap gap-1.5 border-b border-obsidian-800 pb-2">
@@ -376,7 +608,10 @@ export function App() {
             }`}
           >
             <Terminal className="w-3.5 h-3.5 text-slate-300" />
-            <span>3. Ghost Agent Combat Feed</span>
+            <span>3. Cross-Chain Radar & Ghost Agent</span>
+            <span className="text-[10px] px-1.5 py-0.2 bg-obsidian-950 text-slate-400 border border-obsidian-800 rounded">
+              Chain Sigs + Intents
+            </span>
           </button>
 
           <button
@@ -413,6 +648,13 @@ export function App() {
 
         {activeTab === 'agent' && (
           <div className="space-y-6">
+            <CrossChainRadar
+              status={status}
+              logs={logs}
+              activePositions={activePositions}
+              timeRemainingMs={timeRemainingMs}
+              timeoutPeriodMs={timeoutPeriodMs}
+            />
             <GhostTerminal logs={logs} status={status} />
           </div>
         )}
@@ -428,9 +670,12 @@ export function App() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-obsidian-800/80 bg-obsidian-900/40 py-4 text-center text-xs font-mono text-slate-500">
+      <footer className="border-t border-obsidian-800/80 bg-obsidian-900/40 py-4 pb-14 sm:pb-12 text-center text-xs font-mono text-slate-500">
         GhostProtocol • Autonomous Post-Human Sovereign Executor • Powered by NEAR Intents & Chain Signatures
       </footer>
+
+      {/* Floating Collapsible Agent Thoughts Window */}
+      <AgentThoughtsWindow logs={logs} status={status} />
     </div>
   );
 }

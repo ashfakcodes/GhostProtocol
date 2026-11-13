@@ -1,6 +1,6 @@
 /**
  * GhostProtocol WebCrypto Engine
- * Client-Side AES-256-GCM + PBKDF2 Key Splitting (Shamir/XOR Dual-Share)
+ * Client-Side AES-256-GCM + CSPRNG 2-of-2 XOR Additive Secret Sharing
  * 
  * Guarantee: Plaintext directives and cold keys NEVER leave the browser unencrypted.
  */
@@ -12,7 +12,11 @@ export function toHex(bytes: Uint8Array): string {
 
 // Helper to convert hex string to Uint8Array
 export function fromHex(hex: string): Uint8Array {
-  const matches = hex.match(/.{1,2}/g) || [];
+  const cleanHex = hex.trim();
+  if (cleanHex.length % 2 !== 0 || !/^[0-9a-fA-F]*$/.test(cleanHex)) {
+    throw new Error('Invalid hex string format.');
+  }
+  const matches = cleanHex.match(/.{1,2}/g) || [];
   return new Uint8Array(matches.map(byte => parseInt(byte, 16)));
 }
 

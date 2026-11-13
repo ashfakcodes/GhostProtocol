@@ -162,10 +162,21 @@ class TraderDNAEngine:
         else:
             hit_tp = exit_price <= target_tp * 1.05
 
-        # Planned risk vs realized reward
+        # Planned risk vs realized reward (strictly signed and direction-aware)
         initial_risk_dist = abs(entry_price - target_sl) / entry_price if entry_price > 0 else 0.03
-        realized_gain_dist = abs(exit_price - entry_price) / entry_price if entry_price > 0 else 0.05
-        realized_rr = round(realized_gain_dist / max(0.005, initial_risk_dist), 2)
+        initial_risk_dist = max(0.005, initial_risk_dist)
+
+        # Reward = price move in favorable direction
+        if side in ["LONG", "BUY"]:
+            price_delta = exit_price - entry_price
+        else:
+            price_delta = entry_price - exit_price
+
+        # Directional realized reward ratio
+        # For winning trades: positive multiple of initial risk
+        # For losing trades: negative multiple or 0
+        realized_return_dist = price_delta / entry_price if entry_price > 0 else 0.0
+        realized_rr = round(realized_return_dist / initial_risk_dist, 2)
 
         record = {
             "id": close_data.get("id", f"close-{int(time.time()*1000)}"),
@@ -194,15 +205,15 @@ class TraderDNAEngine:
             return
 
         # 1. Trading Patterns
-        limit_orders = sum(1 for t in self.trade_history if t["order_type"] in ["LIMIT", "TWAP"])
+        limit_orders = sum(1 for t in self.trade_history if t.get("order_type", "LIMIT") in ["LIMIT", "TWAP"])
         limit_ratio = (limit_orders / total_trades) * 100
-        perp_count = sum(1 for t in self.trade_history if t["mode"] == "PERP")
-        spot_count = sum(1 for t in self.trade_history if t["mode"] == "SPOT")
-        futures_count = sum(1 for t in self.trade_history if t["mode"] == "FUTURES")
+        perp_count = sum(1 for t in self.trade_history if t.get("mode", "PERP") == "PERP")
+        spot_count = sum(1 for t in self.trade_history if t.get("mode", "PERP") == "SPOT")
+        futures_count = sum(1 for t in self.trade_history if t.get("mode", "PERP") == "FUTURES")
 
         avg_duration = 3600
         if total_closes > 0:
-            avg_duration = sum(c["duration_s"] for c in self.closed_positions) / total_closes
+            avg_duration = sum(c.get("duration_s", 3600) for c in self.closed_positions) / total_closes
 
         if avg_duration < 900:
             time_horizon = "SCALPER (<15m)"
@@ -212,7 +223,7 @@ class TraderDNAEngine:
             time_horizon = "POSITIONAL (>24h)"
 
         # 2 & 3. Leverage Preferences
-        leverages = [t["leverage"] for t in self.trade_history]
+        leverages = [t.get("leverage", 1.0) for t in self.trade_history]
         avg_leverage = sum(leverages) / total_trades
         max_leverage = max(leverages)
 
@@ -224,18 +235,24 @@ class TraderDNAEngine:
             lev_grade = "C (HIGH DEGEN RISK)"
 
         # 4. Stop-Loss Habits
-        stop_loss_count = sum(1 for t in self.trade_history if t["has_stop_loss"])
+        stop_loss_count = sum(1 for t in self.trade_history if t.get("has_stop_loss", True))
         sl_adherence = (stop_loss_count / total_trades) * 100
-        avg_sl = sum(t["stop_loss_pct"] for t in self.trade_history) / total_trades
+        avg_sl = sum(t.get("stop_loss_pct", 2.5) for t in self.trade_history) / total_trades
 
         # 5. Profit-Taking Behavior
-        avg_tp = sum(t["take_profit_pct"] for t in self.trade_history) / total_trades
+        avg_tp = sum(t.get("take_profit_pct", 5.0) for t in self.trade_history) / total_trades
         if total_closes > 0:
-            rr_values = [c["realized_rr"] for c in self.closed_positions]
-            realized_rr = round(sum(rr_values) / len(rr_values), 2)
-            wins = sum(1 for c in self.closed_positions if c["pnl"] > 0)
+            winning_closes = [c for c in self.closed_positions if c.get("pnl", 0.0) > 0]
+            losing_closes = [c for c in self.closed_positions if c.get("pnl", 0.0) < 0]
+
+            # True realized profit factor / R:R ratio
+            avg_win_gain = sum(c.get("realized_rr", 1.0) for c in winning_closes) / len(winning_closes) if winning_closes else (avg_tp / max(1.0, avg_sl))
+            avg_loss_dist = abs(sum(c.get("realized_rr", -1.0) for c in losing_closes) / len(losing_closes)) if losing_closes else 1.0
+
+            realized_rr = round(max(0.1, avg_win_gain / max(0.5, avg_loss_dist)), 2)
+            wins = len(winning_closes)
             win_rate = round((wins / total_closes) * 100, 1)
-            tp_hits = sum(1 for c in self.closed_positions if c["hit_tp"])
+            tp_hits = sum(1 for c in self.closed_positions if c.get("hit_tp", False))
             tp_adherence = round((tp_hits / total_closes) * 100, 1)
         else:
             realized_rr = round(avg_tp / max(1.0, avg_sl), 2)

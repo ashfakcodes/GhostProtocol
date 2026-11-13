@@ -13,8 +13,8 @@ export const VaultEncryptor: React.FC<VaultEncryptorProps> = ({ onVaultSealed })
     "2. Primary bank account recovery email: family-trust@proton.me\n" +
     "3. All cross-chain perpetual positions were unwound to USDC by my Ghost Agent on NEAR. Live well."
   );
-  const [beneficiary, setBeneficiary] = useState("heir.testnet");
-  const [beneficiaryTg, setBeneficiaryTg] = useState("@heir_telegram");
+  const [beneficiary, setBeneficiary] = useState("safiyaayra.testnet");
+  const [beneficiaryTg, setBeneficiaryTg] = useState("@safiyaayra");
   const [splitResult, setSplitResult] = useState<SplitKeyResult | null>(null);
   const [copiedShareB, setCopiedShareB] = useState(false);
   const [isEncrypting, setIsEncrypting] = useState(false);
@@ -25,6 +25,9 @@ export const VaultEncryptor: React.FC<VaultEncryptorProps> = ({ onVaultSealed })
     try {
       const res = await encryptAndSplit(plaintext);
       setSplitResult(res);
+      try {
+        localStorage.setItem('ghost_vault_sealed_bundle', JSON.stringify(res));
+      } catch (err) {}
       // Pass Share A & ciphertext hash to the contract
       onVaultSealed(res.shareA, res.ciphertext.slice(0, 32));
     } catch (e) {

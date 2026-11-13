@@ -1,31 +1,90 @@
-# Node / Frontend
-node_modules/
-frontend/node_modules/
-frontend/dist/
-*.local
+# ========================================================
+# GhostProtocol .gitignore
+# ========================================================
 
-# Rust / Contracts
+# Presentation & Hackathon Meta / Demo Scripts
+DEMO_SCRIPT.md
+*demo_script*
+*demo-script*
+*DEMO_SCRIPT*
+
+# AI Assistant & Planning State
+.neuro-craft/
+.planning/
+
+# Environment, Secrets & Credentials
+.env
+.env.*
+*.env
+*.env.*
+!.env.example
+!*.env.example
+credentials/
+neardev/
+.near-credentials/
+.near/
+*.testnet.json
+*.mainnet.json
+*.near.json
+*.session
+*.session-journal
+*.pem
+*.key
+*.pk
+*.keystore
+*.p12
+*.pfx
+id_rsa*
+id_ed25519*
+
+# Python & Agent Daemon
+__pycache__/
+*/__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+ENV/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+
+# Rust & Smart Contracts
 target/
 contracts/target/
 **/*.rs.bk
 Cargo.lock
 
-# Python / Agent
-__pycache__/
-agent/__pycache__/
-*.py[cod]
-*$py.class
-*.session
-*.session-journal
-.venv/
-venv/
-env/
+# Node / Frontend
+node_modules/
+frontend/node_modules/
+*/node_modules/
+dist/
+frontend/dist/
+build/
+*.local
+.npm/
+.eslintcache
+.vite/
 
-# Environment & Secrets
-.env
-*.env
-
-# OS & Logs
+# IDE, OS & System
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
 .DS_Store
+.DS_Store?
+._*
 Thumbs.db
+desktop.ini
+
+# Logs
 *.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
